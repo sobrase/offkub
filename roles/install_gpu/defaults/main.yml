@@ -1,0 +1,16 @@
+---
+# Default variables for the install_gpu role
+
+# Filename of the NVIDIA driver runfile installer.
+# Provide this file alongside other offline packages or override in group_vars.
+nvidia_driver_runfile: "NVIDIA-Linux-x86_64-525.60.13.run"
+
+# Version string used when installing the NVIDIA container toolkit packages.
+# Can be overridden to match the available offline packages.
+nvidia_toolkit_version: "1.11.0"
+
+# Version of the NVIDIA device plugin container image.
+device_plugin_version: "v0.15.0"
+
+# Placeholder for any additional GPU-specific defaults
+install_gpu_placeholder: true
