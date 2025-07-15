@@ -1,0 +1,6 @@
+---
+# Handler to reboot the node after GPU installation if required
+- name: Reboot GPU node
+  ansible.builtin.reboot:
+    reboot_timeout: 300
+  become: yes
