@@ -83,12 +83,13 @@
     dest: /etc/containerd/config.toml
     mode: '0644'
   become: yes
+  notify: Restart containerd
 
-- name: Enable and restart containerd
+- name: Enable and start containerd
   systemd:
     name: containerd
     enabled: yes
-    state: restarted
+    state: started
   become: yes
 
 - name: Enable kubelet service
