@@ -1,0 +1,20 @@
+---
+# Default variables for the setup_registry role
+
+# Port for the local Docker registry. Override in group_vars if needed
+registry_port: "5000"
+
+# List of Kubernetes core image tar files to load into the registry.
+# These should be specified in group_vars with the exact filenames present
+# in the offline image directory.
+kube_core_images: []
+
+# List of Calico networking images to load. Set via group_vars when required.
+calico_images: []
+
+# Filename of the NVIDIA device plugin image tarball.
+# Define this in group_vars if GPU support is needed.
+nvidia_plugin_image: ""
+
+# Placeholder for any additional defaults
+setup_registry_placeholder: true
