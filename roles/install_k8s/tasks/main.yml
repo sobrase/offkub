@@ -1,0 +1,99 @@
+---
+# Install Kubernetes binaries and containerd in an air-gapped environment
+- name: Ensure temporary directory for deb packages exists
+  file:
+    path: /tmp/k8s_debs
+    state: directory
+    mode: '0755'
+  become: yes
+
+# Copy required Kubernetes .deb packages from the control node
+- name: Copy Kubernetes packages to node
+  copy:
+    src: "{{ offline_pkg_dir }}/{{ item }}"
+    dest: "/tmp/k8s_debs/{{ item }}"
+    mode: '0644'
+  loop: "{{ kubernetes_packages }}"
+  become: yes
+
+# Determine containerd package filename
+- name: Set containerd package file name
+  set_fact:
+    containerd_pkg_file: "containerd.io_{{ containerd_version }}-1_amd64.deb"
+  become: yes
+
+- name: Copy containerd package to node
+  copy:
+    src: "{{ offline_pkg_dir }}/{{ containerd_pkg_file }}"
+    dest: "/tmp/k8s_debs/{{ containerd_pkg_file }}"
+    mode: '0644'
+  when: containerd_pkg_file is defined
+  become: yes
+
+# Install OS utility packages first
+- name: Install OS utility packages
+  apt:
+    deb: "/tmp/k8s_debs/{{ item }}"
+    state: present
+  loop:
+    - "conntrack_1.4.7-1_amd64.deb"
+    - "socat_1.7.4.4-2_amd64.deb"
+    - "ebtables_2.0.11-4_amd64.deb"
+  become: yes
+
+# Install Kubernetes support binaries
+- name: Install Kubernetes support binaries
+  apt:
+    deb: "/tmp/k8s_debs/{{ item }}"
+    state: present
+  loop:
+    - "cri-tools_1.28.0-1_amd64.deb"
+    - "kubernetes-cni_1.3.0-1_amd64.deb"
+  become: yes
+
+# Install main Kubernetes binaries
+- name: Install Kubernetes binaries
+  apt:
+    deb: "/tmp/k8s_debs/{{ item }}"
+    state: present
+  loop:
+    - "kubelet_{{ kube_version_pkgs }}_amd64.deb"
+    - "kubectl_{{ kube_version_pkgs }}_amd64.deb"
+    - "kubeadm_{{ kube_version_pkgs }}_amd64.deb"
+  become: yes
+
+# Install containerd runtime
+- name: Install containerd
+  apt:
+    deb: "/tmp/k8s_debs/{{ containerd_pkg_file }}"
+    state: present
+  become: yes
+
+# Generate a default containerd configuration
+- name: Generate default containerd config
+  shell: containerd config default > /etc/containerd/config.toml
+  args:
+    creates: /etc/containerd/config.toml
+  become: yes
+
+# Deploy the custom containerd configuration
+- name: Deploy containerd configuration
+  template:
+    src: containerd_config.toml.j2
+    dest: /etc/containerd/config.toml
+    mode: '0644'
+  become: yes
+
+- name: Enable and restart containerd
+  systemd:
+    name: containerd
+    enabled: yes
+    state: restarted
+  become: yes
+
+- name: Enable kubelet service
+  systemd:
+    name: kubelet
+    enabled: yes
+    state: stopped
+  become: yes
