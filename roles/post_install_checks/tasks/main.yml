@@ -1,0 +1,90 @@
+---
+# Finalize the cluster setup and perform post installation checks
+
+- name: Set kubectl environment
+  set_fact:
+    kubectl_env:
+      KUBECONFIG: /etc/kubernetes/admin.conf
+  become: true
+
+- name: Disable kube-proxy
+  shell: kubectl patch ds -n kube-system kube-proxy -p '{"spec":{"template":{"spec":{"nodeSelector":{"non-calico":"true"}}}}}'
+  environment: "{{ kubectl_env }}"
+  become: true
+
+- name: Set Calico API endpoints
+  shell: |
+    cat <<EOF2 | kubectl apply -f -
+    apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: kubernetes-services-endpoint
+      namespace: kube-system
+    data:
+      KUBERNETES_SERVICE_HOST: "{{ hostvars[groups['masters'][0]].ansible_default_ipv4.address }}"
+      KUBERNETES_SERVICE_PORT: "6443"
+    EOF2
+  environment: "{{ kubectl_env }}"
+  become: true
+
+- name: Restart Calico pods to pick up API endpoint
+  shell: kubectl delete pods -n kube-system -l k8s-app=calico-node
+  environment: "{{ kubectl_env }}"
+  become: true
+
+- name: Enable Calico eBPF
+  shell: |
+    kubectl patch felixconfiguration.p default --type merge -p '{"spec": {"bpfEnabled": true, "bpfKubeProxyIptablesCleanupEnabled": false}}'
+  environment: "{{ kubectl_env }}"
+  become: true
+
+- name: Copy NVIDIA device plugin manifest
+  template:
+    src: nvidia-device-plugin.yml.j2
+    dest: /tmp/nvidia-device-plugin.yml
+    mode: '0644'
+  become: true
+
+- name: Apply NVIDIA device plugin manifest
+  shell: kubectl apply -f /tmp/nvidia-device-plugin.yml
+  environment: "{{ kubectl_env }}"
+  become: true
+
+- name: Wait for NVIDIA device plugin rollout
+  shell: kubectl rollout status ds/nvidia-device-plugin-daemonset -n kube-system --timeout=120s
+  register: nvidia_rollout
+  retries: 5
+  delay: 30
+  until: nvidia_rollout.rc == 0
+  environment: "{{ kubectl_env }}"
+  changed_when: false
+  become: true
+
+- name: Get node status
+  shell: kubectl get nodes -o wide
+  register: nodes_output
+  changed_when: false
+  environment: "{{ kubectl_env }}"
+  become: true
+
+- name: Display node status
+  debug:
+    msg: "{{ nodes_output.stdout }}"
+  become: true
+
+- name: Get pod status
+  shell: kubectl get pods -A
+  register: pods_output
+  changed_when: false
+  environment: "{{ kubectl_env }}"
+  become: true
+
+- name: Display pod status
+  debug:
+    msg: "{{ pods_output.stdout }}"
+  become: true
+
+- name: Cluster installation successful
+  debug:
+    msg: "Kubernetes cluster is operational with NVIDIA device plugin"
+  become: true

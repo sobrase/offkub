@@ -1,0 +1,5 @@
+---
+# Default variables for the post_install_checks role
+
+# Placeholder for any future defaults
+post_install_checks_placeholder: true
