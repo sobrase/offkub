@@ -1,0 +1,83 @@
+---
+# Offline installation of NVIDIA GPU driver and container toolkit
+
+- name: Ensure directory for NVIDIA packages exists
+  file:
+    path: /tmp/nvidia_debs
+    state: directory
+    mode: '0755'
+  become: yes
+
+# Blacklist the open source nouveau driver
+- name: Blacklist nouveau driver
+  copy:
+    dest: /etc/modprobe.d/nouveau-blacklist.conf
+    content: "blacklist nouveau\n"
+    mode: '0644'
+  become: yes
+
+- name: Update initramfs to apply nouveau blacklist
+  command: update-initramfs -u
+  register: initramfs_update
+  failed_when: false
+  changed_when: initramfs_update.rc == 0
+  become: yes
+
+- name: Remove nouveau module if loaded
+  command: modprobe -r nouveau
+  register: remove_nouveau
+  failed_when: false
+  changed_when: remove_nouveau.rc == 0
+  become: yes
+
+# Check if NVIDIA driver already installed
+- name: Check for existing NVIDIA driver
+  command: nvidia-smi
+  register: nvidia_smi
+  failed_when: false
+  changed_when: false
+  become: yes
+
+- name: Copy NVIDIA driver installer
+  copy:
+    src: "{{ offline_pkg_dir }}/{{ nvidia_driver_runfile }}"
+    dest: "/tmp/{{ nvidia_driver_runfile }}"
+    mode: '0755'
+  when: nvidia_smi.rc != 0
+  become: yes
+
+- name: Install NVIDIA driver
+  shell: "sh /tmp/{{ nvidia_driver_runfile }} -s --no-cc-version-check"
+  args:
+    creates: /usr/bin/nvidia-smi
+  when: nvidia_smi.rc != 0
+  become: yes
+
+# Copy and install NVIDIA container toolkit packages offline
+- name: Copy NVIDIA container toolkit packages
+  copy:
+    src: "{{ item }}"
+    dest: /tmp/nvidia_debs/
+    mode: '0644'
+  loop: "{{ lookup('fileglob', offline_pkg_dir + '/nvidia*.deb', wantlist=True) }}"
+  become: yes
+
+- name: Install NVIDIA container toolkit packages
+  shell: dpkg -i /tmp/nvidia_debs/*.deb
+  args:
+    warn: false
+  become: yes
+
+- name: Load NVIDIA kernel module
+  command: modprobe nvidia
+  register: modprobe_nvidia
+  failed_when: false
+  changed_when: modprobe_nvidia.rc == 0
+  become: yes
+
+- name: Verify NVIDIA driver installation
+  command: nvidia-smi -L
+  register: nvidia_smi_output
+  failed_when: false
+  changed_when: false
+  become: yes
