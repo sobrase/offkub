@@ -1,0 +1,9 @@
+---
+# Default variables for the kubeadm_workers role
+
+# Path to the container runtime socket. This is used when executing
+# the kubeadm join command. Adjust if your runtime uses a different path.
+cri_socket: "/run/containerd/containerd.sock"
+
+# Placeholder variable for any future defaults or join command tweaks
+kubeadm_workers_placeholder: true
