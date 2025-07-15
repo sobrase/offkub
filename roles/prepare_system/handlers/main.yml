@@ -1,0 +1,12 @@
+---
+# Handler to apply sysctl settings if not already loaded
+- name: Apply sysctl
+  ansible.builtin.command: sysctl --system
+  become: yes
+
+# Handler to reboot the node if required by previous tasks
+- name: Reboot if needed
+  ansible.builtin.reboot:
+    reboot_timeout: 300
+  become: yes
+
