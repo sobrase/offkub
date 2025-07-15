@@ -1,0 +1,18 @@
+apiVersion: kubeadm.k8s.io/v1beta3
+kind: ClusterConfiguration
+clusterName: kubernetes
+kubernetesVersion: v{{ kube_version }}
+imageRepository: "{{ registry_host }}:{{ registry_port }}"
+networking:
+  podSubnet: "10.244.0.0/16"
+dns:
+  type: CoreDNS
+certificatesDir: /etc/kubernetes/pki
+
+---
+apiVersion: kubeadm.k8s.io/v1beta3
+kind: InitConfiguration
+localAPIEndpoint:
+  advertiseAddress: {{ ansible_default_ipv4.address }}
+nodeRegistration:
+  criSocket: "/run/containerd/containerd.sock"
