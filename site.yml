@@ -1,0 +1,46 @@
+---
+- hosts: all
+  become: yes
+  any_errors_fatal: true
+  roles:
+    - role: prepare_system
+
+- hosts: gpu
+  become: yes
+  any_errors_fatal: true
+  roles:
+    - role: install_gpu
+      when: groups['gpu'] is defined and groups['gpu'] | length > 0
+
+- hosts: all
+  become: yes
+  any_errors_fatal: true
+  roles:
+    - role: install_k8s
+
+- hosts: masters
+  become: yes
+  any_errors_fatal: true
+  run_once: true
+  roles:
+    - role: setup_registry
+
+- hosts: masters
+  become: yes
+  any_errors_fatal: true
+  roles:
+    - role: kubeadm_master
+
+- hosts: workers
+  become: yes
+  any_errors_fatal: true
+  roles:
+    - role: kubeadm_workers
+
+- hosts: masters
+  become: yes
+  any_errors_fatal: true
+  run_once: true
+  roles:
+    - role: post_install_checks
+
