@@ -1,0 +1,12 @@
+---
+# Default variables for the install_k8s role
+
+# List of Kubernetes package files to install. Kept empty by default so the
+# role does nothing if packages are not specified.
+kubernetes_packages: []
+
+# Location of the containerd configuration file deployed by this role
+containerd_config_path: "/etc/containerd/config.toml"
+
+# Placeholder variable for any future defaults specific to this role
+install_k8s_placeholder: true
