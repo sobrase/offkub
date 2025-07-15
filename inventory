@@ -1,0 +1,9 @@
+[masters]
+master1
+
+[workers]
+worker1
+gpu1
+
+[gpu]
+gpu1
