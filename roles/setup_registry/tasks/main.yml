@@ -1,0 +1,136 @@
+---
+# Offline setup of a Docker registry on the master node
+
+- name: Ensure directory for Docker packages exists
+  file:
+    path: /tmp/docker_debs
+    state: directory
+    mode: '0755'
+  become: yes
+
+# Copy the Docker engine .deb files from the control host
+- name: Copy Docker packages to node
+  copy:
+    src: "{{ offline_pkg_dir }}/{{ item }}"
+    dest: "/tmp/docker_debs/{{ item }}"
+    mode: '0644'
+  loop: "{{ registry_docker_packages }}"
+  become: yes
+
+# Install Docker from local packages
+- name: Install Docker packages
+  shell: dpkg -i /tmp/docker_debs/*.deb
+  args:
+    warn: false
+  become: yes
+
+- name: Enable and start Docker service
+  systemd:
+    name: docker
+    enabled: yes
+    state: started
+  become: yes
+
+# Configure Docker daemon to use the insecure local registry
+- name: Configure Docker daemon for insecure registry
+  copy:
+    dest: /etc/docker/daemon.json
+    content: |
+      {
+        "insecure-registries": ["{{ registry_host }}:{{ registry_port }}"],
+        "allow-nondistributable-artifacts": ["{{ registry_host }}:{{ registry_port }}"]
+      }
+    mode: '0644'
+  notify: Restart docker
+  become: yes
+
+- name: Set registry image tar name
+  set_fact:
+    registry_image_tar: "registry_2.8.2.tar"
+
+# Load the registry image from local tarball
+- name: Copy registry image tarball
+  copy:
+    src: "{{ offline_image_dir }}/{{ registry_image_tar }}"
+    dest: /tmp/registry.tar
+    mode: '0644'
+  become: yes
+
+- name: Load registry image
+  shell: docker load -i /tmp/registry.tar
+  args:
+    warn: false
+  become: yes
+
+- name: Ensure registry container is running
+  shell: |
+    if ! docker ps -a --format '{{"{{"}}.Names{{"}}"}}' | grep -q '^registry$'; then
+      docker run -d -p {{ registry_port }}:5000 --restart=always --name registry registry:2
+    else
+      docker start registry
+    fi
+  args:
+    executable: /bin/bash
+  become: yes
+
+# Define lists of images to load into the registry
+- name: Define Kubernetes images
+  set_fact:
+    kube_core_images:
+      - "kube-apiserver_{{ kube_version }}.tar"
+      - "kube-controller-manager_{{ kube_version }}.tar"
+      - "kube-scheduler_{{ kube_version }}.tar"
+      - "kube-proxy_{{ kube_version }}.tar"
+      - "etcd.tar"
+      - "coredns.tar"
+      - "pause.tar"
+    calico_images:
+      - "calico-cni_{{ calico_image_version }}.tar"
+      - "calico-node_{{ calico_image_version }}.tar"
+      - "calico-kube-controllers_{{ calico_image_version }}.tar"
+    nvidia_plugin_image: "nvidia-device-plugin_{{ device_plugin_version }}.tar"
+
+# Load Kubernetes core images and push them to the local registry
+- name: Load and push Kubernetes core images
+  shell: |
+    img=$(docker load -i {{ offline_image_dir }}/{{ item }} | awk '/Loaded image:/ {print $3}')
+    name=$(echo "$img" | awk -F/ '{print $NF}')
+    docker tag $img {{ registry_host }}:{{ registry_port }}/$name
+    docker push {{ registry_host }}:{{ registry_port }}/$name
+  args:
+    executable: /bin/bash
+    warn: false
+  loop: "{{ kube_core_images }}"
+  become: yes
+
+# Load Calico networking images and push to the registry
+- name: Load and push Calico images
+  shell: |
+    img=$(docker load -i {{ offline_image_dir }}/{{ item }} | awk '/Loaded image:/ {print $3}')
+    name=$(echo "$img" | awk -F/ '{print $NF}')
+    docker tag $img {{ registry_host }}:{{ registry_port }}/$name
+    docker push {{ registry_host }}:{{ registry_port }}/$name
+  args:
+    executable: /bin/bash
+    warn: false
+  loop: "{{ calico_images }}"
+  become: yes
+
+# Load NVIDIA device plugin image and push
+- name: Load and push NVIDIA device plugin image
+  shell: |
+    img=$(docker load -i {{ offline_image_dir }}/{{ nvidia_plugin_image }} | awk '/Loaded image:/ {print $3}')
+    name=$(echo "$img" | awk -F/ '{print $NF}')
+    docker tag $img {{ registry_host }}:{{ registry_port }}/$name
+    docker push {{ registry_host }}:{{ registry_port }}/$name
+  args:
+    executable: /bin/bash
+    warn: false
+  become: yes
+
+# Optional verification that the registry is serving
+- name: Verify local registry catalog
+  shell: curl -sf http://{{ registry_host }}:{{ registry_port }}/v2/_catalog
+  register: registry_check
+  changed_when: false
+  become: yes
