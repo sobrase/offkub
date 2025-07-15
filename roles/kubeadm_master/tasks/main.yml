@@ -1,0 +1,83 @@
+---
+# Initialize Kubernetes control plane on the master node
+- name: Check if kubeadm init already ran
+  stat:
+    path: /etc/kubernetes/pki
+  register: pki_dir
+  become: true
+
+- name: Generate kubeadm configuration
+  template:
+    src: kubeadm_config.yaml.j2
+    dest: /tmp/kubeadm_config.yaml
+    mode: '0644'
+  when: not pki_dir.stat.exists
+  become: true
+
+- name: Initialize Kubernetes control plane
+  shell: kubeadm init --config /tmp/kubeadm_config.yaml
+  register: kubeadm_init
+  when: not pki_dir.stat.exists
+  become: true
+
+- name: Set join command fact
+  shell: kubeadm token create --print-join-command
+  register: join_command_result
+  changed_when: false
+  become: true
+
+- name: Set join command for other hosts
+  set_fact:
+    join_command: "{{ join_command_result.stdout }}"
+  become: true
+
+- name: Ensure .kube directory exists for root
+  file:
+    path: /root/.kube
+    state: directory
+    mode: '0700'
+  become: true
+
+- name: Copy admin kubeconfig
+  copy:
+    src: /etc/kubernetes/admin.conf
+    dest: /root/.kube/config
+    remote_src: yes
+    mode: '0600'
+  become: true
+
+- name: Export KUBECONFIG for subsequent tasks
+  set_fact:
+    kubectl_env:
+      KUBECONFIG: /etc/kubernetes/admin.conf
+  become: true
+
+- name: Remove master taint to allow scheduling on control plane
+  shell: |
+    kubectl taint nodes $(hostname) node-role.kubernetes.io/control-plane- || true
+  environment: "{{ kubectl_env }}"
+  when: not pki_dir.stat.exists
+  become: true
+
+- name: Copy Calico manifest
+  copy:
+    src: "{{ offline_image_dir }}/calico.yaml"
+    dest: /tmp/calico.yaml
+    mode: '0644'
+  become: true
+
+- name: Apply Calico manifest
+  shell: kubectl apply -f /tmp/calico.yaml
+  environment: "{{ kubectl_env }}"
+  become: true
+
+- name: Wait for Calico pods to be ready
+  shell: |
+    kubectl get pods -n kube-system -l k8s-app=calico-node -o jsonpath='{.items[*].status.phase}'
+  register: calico_status
+  until: calico_status.stdout.split() | unique == ['Running']
+  retries: 20
+  delay: 15
+  environment: "{{ kubectl_env }}"
+  changed_when: false
+  become: true
