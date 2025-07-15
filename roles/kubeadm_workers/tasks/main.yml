@@ -1,0 +1,37 @@
+---
+# Join worker nodes to an existing Kubernetes cluster
+
+- name: Check if node already joined
+  stat:
+    path: /etc/kubernetes/kubelet.conf
+  register: kubelet_conf
+  become: yes
+
+- name: Get join command from master
+  command: cat /tmp/join.sh
+  register: master_join_cmd
+  delegate_to: "{{ groups['masters'][0] }}"
+  run_once: true
+  become: yes
+
+- name: Join node to cluster
+  shell: "{{ master_join_cmd.stdout }} --cri-socket unix:///run/containerd/containerd.sock"
+  register: join_result
+  when: not kubelet_conf.stat.exists
+  become: yes
+
+- name: Fail if kubeadm join failed
+  fail:
+    msg: "kubeadm join failed with rc {{ join_result.rc }}: {{ join_result.stderr }}"
+  when:
+    - not kubelet_conf.stat.exists
+    - join_result.rc != 0
+  become: yes
+
+- name: Joined node to cluster
+  debug:
+    msg: "Joined node to cluster"
+  when:
+    - not kubelet_conf.stat.exists
+    - join_result.rc == 0
+  become: yes
