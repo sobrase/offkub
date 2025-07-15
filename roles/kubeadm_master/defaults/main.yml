@@ -1,0 +1,12 @@
+---
+# Default variables for the kubeadm_master role
+
+# Pod CIDR for cluster networking. Should match your CNI configuration.
+pod_cidr: "10.244.0.0/16"
+
+# Kubernetes version to use during init. This must match the installed packages.
+# Override in group_vars if a global kube_version is provided.
+kube_version: "1.32.0"
+
+# Placeholder for future defaults specific to this role
+kubeadm_master_placeholder: true
