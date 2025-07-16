@@ -84,6 +84,8 @@ fetch_deb() {
   version="${version//%3a/:}"
   echo "Downloading $name=$version and dependencies"
   pushd "$download_tmp" >/dev/null
+  # Avoid literal '*.deb' when there are no dependency packages
+  shopt -s nullglob
   # Download package and dependencies into $download_tmp
   apt-get -y -o Dir::Cache::archives="$download_tmp" --download-only install "${name}=${version}"
   # Rename the primary package to match the file name expected by Ansible
@@ -104,6 +106,7 @@ fetch_deb() {
       rm -f "$dep"
     fi
   done
+  shopt -u nullglob
   popd >/dev/null
 }
 
