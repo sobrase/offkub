@@ -1,6 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# This script targets Debian 12 hosts. Ensure we are running as root so that
+# repository configuration and package downloads succeed.
+if [[ "${EUID}" -ne 0 ]]; then
+  echo "Please run this script as root" >&2
+  exit 1
+fi
+
 # This script downloads Debian packages and container images needed for
 # offline deployment. It must be run on a machine with internet access
 # and Docker/apt utilities installed.
@@ -49,6 +56,20 @@ PY
 containerd_pkg_file="containerd.io_${containerd_version}-1_amd64.deb"
 
 mkdir -p "$offline_pkg_dir" "$offline_image_dir"
+
+# Configure Kubernetes apt repository for Debian 12 based on the official
+# installation instructions. Only add the repo if it's missing.
+kube_minor="$(echo "$kube_version" | awk -F. '{print $1 "." $2}')"
+if [[ ! -f /etc/apt/sources.list.d/kubernetes.list ]]; then
+  echo "Adding Kubernetes apt repository for v${kube_minor}"
+  mkdir -p -m 755 /etc/apt/keyrings
+  curl -fsSL "https://pkgs.k8s.io/core:/stable:/v${kube_minor}/deb/Release.key" \
+    | gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+  echo "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v${kube_minor}/deb/ /" \
+    > /etc/apt/sources.list.d/kubernetes.list
+fi
+apt-get update
+apt-get install -y apt-transport-https ca-certificates curl gpg
 
 # Temporary directory used for apt downloads to avoid permission issues with
 # the _apt sandbox user. Files are moved to $offline_pkg_dir afterwards.
