@@ -83,9 +83,9 @@
       - "coredns_v1.10.1.tar"
       - "pause_3.9.tar"
     calico_images:
-      - "calico-cni_{{ calico_image_version }}.tar"
-      - "calico-node_{{ calico_image_version }}.tar"
-      - "calico-kube-controllers_{{ calico_image_version }}.tar"
+      - "cni_{{ calico_image_version }}.tar"
+      - "node_{{ calico_image_version }}.tar"
+      - "kube-controllers_{{ calico_image_version }}.tar"
     nvidia_plugin_image: "nvidia-device-plugin_{{ device_plugin_version }}.tar"
 
 # Download Kubernetes core image tarballs
