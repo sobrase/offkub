@@ -25,13 +25,13 @@ then
 fi
 
 read -r offline_pkg_dir offline_image_dir kube_version kube_version_pkgs \
-        containerd_version calico_version calico_image_version \
+        registry_version containerd_version calico_version calico_image_version \
         device_plugin_version <<< "$(python3 - <<PY
 import yaml,sys
 with open('$VARS_FILE') as f:
     data = yaml.safe_load(f)
 fields = ['offline_pkg_dir','offline_image_dir','kube_version',
-          'kube_version_pkgs','containerd_version','calico_version',
+          'kube_version_pkgs','registry_version','containerd_version','calico_version',
           'calico_image_version','device_plugin_version']
 print(' '.join(str(data.get(k,'')) for k in fields))
 PY
@@ -137,8 +137,8 @@ done
 cd "$offline_image_dir"
 
 # Registry image
-docker pull registry:2.8.2
-docker save registry:2.8.2 -o registry_2.8.2.tar
+docker pull registry:${registry_version}
+docker save registry:${registry_version} -o "registry_${registry_version}.tar"
 
 # Kubernetes control plane images
 if command -v kubeadm >/dev/null; then

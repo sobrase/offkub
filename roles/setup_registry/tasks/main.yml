@@ -45,7 +45,7 @@
 
 - name: Set registry image tar name
   set_fact:
-    registry_image_tar: "registry_2.8.2.tar"
+    registry_image_tar: "registry_{{ registry_version }}.tar"
 
 # Load the registry image from local tarball
 - name: Download registry image tarball from asset server
