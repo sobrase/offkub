@@ -19,3 +19,8 @@ will pull packages and images from this local HTTP server.
 The registry image version can be customized via the `registry_version`
 variable in `group_vars/all.yml`. Ensure the matching tarball is available
 under `offline_image_dir` before running the playbook.
+
+The `prepare_system` role configures kernel parameters required for Kubernetes.
+It disables swap, loads the `overlay` and `br_netfilter` modules, and enables
+IPv4 forwarding via `/etc/sysctl.d/k8s.conf`. These settings ensure that
+`kubeadm` passes preflight checks in fully air‑gapped deployments.
