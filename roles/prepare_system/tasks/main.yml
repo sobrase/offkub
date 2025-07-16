@@ -15,3 +15,20 @@
     state: present
   when: add_registry_host_entry
   become: yes
+
+- name: Ensure /etc/docker directory exists
+  file:
+    path: /etc/docker
+    state: directory
+    mode: '0755'
+  become: yes
+
+- name: Configure Docker daemon for local registry
+  copy:
+    dest: /etc/docker/daemon.json
+    content: |
+      {
+        "insecure-registries": ["{{ registry_host }}:5000"]
+      }
+    mode: '0644'
+  become: yes
