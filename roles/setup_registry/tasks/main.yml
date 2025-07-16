@@ -79,9 +79,9 @@
       - "kube-controller-manager_v{{ kube_version }}.tar"
       - "kube-scheduler_v{{ kube_version }}.tar"
       - "kube-proxy_v{{ kube_version }}.tar"
-      - "etcd_3.5.9-0.tar"
-      - "coredns_v1.10.1.tar"
-      - "pause_3.9.tar"
+      - "etcd_3.5.16-0.tar"
+      - "coredns_v1.11.3.tar"
+      - "pause_3.10.tar"
     calico_images:
       - "cni_{{ calico_image_version }}.tar"
       - "node_{{ calico_image_version }}.tar"
