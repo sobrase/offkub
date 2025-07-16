@@ -51,4 +51,4 @@ nvidia_packages:
 
 # Hosts file configuration
 add_registry_host_entry: true            # Whether to map registry_host in /etc/hosts
-registry_master_ip: ""                  # Override master IP for registry host if needed
+registry_master_ip: "10.0.1.100"                  # Override master IP for registry host if needed
