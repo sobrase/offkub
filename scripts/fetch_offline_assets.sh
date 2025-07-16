@@ -112,6 +112,11 @@ fetch_deb() {
 
 cd "$offline_pkg_dir"
 for pkg in "${kubernetes_packages[@]}" "${registry_packages[@]}" "$containerd_pkg_file"; do
+  # kubernetes-cni is fetched automatically as a dependency of other
+  # Kubernetes packages, so skip explicitly downloading it here
+  if [[ $pkg == kubernetes-cni_* ]]; then
+    continue
+  fi
   fetch_deb "$pkg"
 done
 
