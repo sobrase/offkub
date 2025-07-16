@@ -66,8 +66,6 @@
 
 - name: Install NVIDIA container toolkit packages
   shell: dpkg -i /tmp/nvidia_debs/*.deb
-  args:
-    warn: false
   become: yes
 
 - name: Load NVIDIA kernel module

@@ -21,8 +21,6 @@
 # Install Docker from local packages
 - name: Install Docker packages
   shell: dpkg -i /tmp/docker_debs/*.deb
-  args:
-    warn: false
   become: yes
 
 - name: Enable and start Docker service
@@ -60,8 +58,6 @@
 
 - name: Load registry image
   shell: docker load -i /tmp/registry.tar
-  args:
-    warn: false
   become: yes
 
 - name: Ensure registry container is running
@@ -111,7 +107,6 @@
     docker push {{ registry_host }}:{{ registry_port }}/$name
   args:
     executable: /bin/bash
-    warn: false
   loop: "{{ kube_core_images }}"
   become: yes
 
@@ -134,7 +129,6 @@
     docker push {{ registry_host }}:{{ registry_port }}/$name
   args:
     executable: /bin/bash
-    warn: false
   loop: "{{ calico_images }}"
   become: yes
 
@@ -156,7 +150,6 @@
     docker push {{ registry_host }}:{{ registry_port }}/$name
   args:
     executable: /bin/bash
-    warn: false
   become: yes
 
 # Optional verification that the registry is serving
