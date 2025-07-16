@@ -75,13 +75,13 @@
 - name: Define Kubernetes images
   set_fact:
     kube_core_images:
-      - "kube-apiserver_{{ kube_version }}.tar"
-      - "kube-controller-manager_{{ kube_version }}.tar"
-      - "kube-scheduler_{{ kube_version }}.tar"
-      - "kube-proxy_{{ kube_version }}.tar"
-      - "etcd.tar"
-      - "coredns.tar"
-      - "pause.tar"
+      - "kube-apiserver_v{{ kube_version }}.tar"
+      - "kube-controller-manager_v{{ kube_version }}.tar"
+      - "kube-scheduler_v{{ kube_version }}.tar"
+      - "kube-proxy_v{{ kube_version }}.tar"
+      - "etcd_3.5.9-0.tar"
+      - "coredns_v1.10.1.tar"
+      - "pause_3.9.tar"
     calico_images:
       - "calico-cni_{{ calico_image_version }}.tar"
       - "calico-node_{{ calico_image_version }}.tar"
