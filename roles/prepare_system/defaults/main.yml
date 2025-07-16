@@ -3,5 +3,10 @@
 swap_fstab_path: "/etc/fstab"          # Path to the fstab file for swap configuration
 allow_reboot: false                     # Whether this role may reboot the host automatically
 
+# Whether to add the registry host entry to /etc/hosts
+add_registry_host_entry: false
+# IP address to map to registry_host; empty uses first master IP
+registry_master_ip: ""
+
 # Placeholder variable - this role currently has no critical defaults
 prepare_system_placeholder: true

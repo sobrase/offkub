@@ -1,0 +1,17 @@
+---
+# Prepare system settings prior to Kubernetes installation
+
+- name: Determine master node IP for registry mapping
+  set_fact:
+    registry_master_ip_resolved: >-
+      {{ registry_master_ip | default(hostvars[groups['masters'][0]].ansible_host | default(hostvars[groups['masters'][0]].ansible_default_ipv4.address)) }}
+  when: add_registry_host_entry
+
+- name: Ensure {{ registry_host }} is resolvable via /etc/hosts
+  lineinfile:
+    path: /etc/hosts
+    regexp: '\s{{ registry_host }}$'
+    line: "{{ registry_master_ip_resolved }} {{ registry_host }}"
+    state: present
+  when: add_registry_host_entry
+  become: yes

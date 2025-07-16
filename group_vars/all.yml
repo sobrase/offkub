@@ -40,3 +40,7 @@ registry_port: 5000
 nvidia_driver_runfile: "NVIDIA-Linux-x86_64-535.129.03.run"
 nvidia_toolkit_version: "1.15.0"        # Container toolkit package
 device_plugin_version: "v0.15.0"        # NVIDIA device plugin image tag
+
+# Hosts file configuration
+add_registry_host_entry: true            # Whether to map registry_host in /etc/hosts
+registry_master_ip: ""                  # Override master IP for registry host if needed
