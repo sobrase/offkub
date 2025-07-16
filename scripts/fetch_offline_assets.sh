@@ -75,21 +75,35 @@ apt-get install -y apt-transport-https ca-certificates curl gpg
 # the _apt sandbox user. Files are moved to $offline_pkg_dir afterwards.
 download_tmp=$(mktemp -d)
 
-# Function to download a deb by name/version using apt-get download
+# Download a .deb package and all of its dependencies
 fetch_deb() {
   local file="$1"
   local name="${file%%_*}"
   local ver_arch="${file#*_}"
   local version="${ver_arch%_amd64.deb}"
   version="${version//%3a/:}"
-  echo "Downloading $name=$version"
+  echo "Downloading $name=$version and dependencies"
   pushd "$download_tmp" >/dev/null
-  apt-get -y download "$name=$version"
-  local dl_file="${name}_${version//:/%3a}_amd64.deb"
-  if [[ ! -f $dl_file ]]; then
-    dl_file=$(ls ${name}_*_amd64.deb | head -n1)
+  # Download package and dependencies into $download_tmp
+  apt-get -y -o Dir::Cache::archives="$download_tmp" --download-only install "${name}=${version}"
+  # Rename the primary package to match the file name expected by Ansible
+  local main_pkg="${name}_${version}_amd64.deb"
+  if [[ -f $main_pkg ]]; then
+    mv "$main_pkg" "$offline_pkg_dir/$file"
+  else
+    # Fallback to apt-get download for the main package if needed
+    apt-get -y download "${name}=${version}"
+    mv "${name}_${version//:/%3a}_amd64.deb" "$offline_pkg_dir/$file"
   fi
-  mv "$dl_file" "$offline_pkg_dir/$file"
+  # Move dependencies (if any) while avoiding overwriting existing files
+  for dep in *.deb; do
+    [[ "$dep" == "$main_pkg" ]] && continue
+    if [[ ! -f "$offline_pkg_dir/$dep" ]]; then
+      mv "$dep" "$offline_pkg_dir/"
+    else
+      rm -f "$dep"
+    fi
+  done
   popd >/dev/null
 }
 
