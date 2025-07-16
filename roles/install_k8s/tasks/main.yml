@@ -7,12 +7,13 @@
     mode: '0755'
   become: yes
 
-# Copy required Kubernetes .deb packages from the control node
-- name: Copy Kubernetes packages to node
-  copy:
-    src: "{{ offline_pkg_dir }}/{{ item }}"
+# Download required Kubernetes .deb packages from the master HTTP service
+- name: Download Kubernetes packages from asset server
+  get_url:
+    url: "http://{{ asset_server_host }}:{{ asset_server_port }}/pkgs/{{ item }}"
     dest: "/tmp/k8s_debs/{{ item }}"
     mode: '0644'
+    timeout: 30
   loop: "{{ kubernetes_packages }}"
   become: yes
 
@@ -22,11 +23,12 @@
     containerd_pkg_file: "containerd.io_{{ containerd_version }}-1_amd64.deb"
   become: yes
 
-- name: Copy containerd package to node
-  copy:
-    src: "{{ offline_pkg_dir }}/{{ containerd_pkg_file }}"
+- name: Download containerd package from asset server
+  get_url:
+    url: "http://{{ asset_server_host }}:{{ asset_server_port }}/pkgs/{{ containerd_pkg_file }}"
     dest: "/tmp/k8s_debs/{{ containerd_pkg_file }}"
     mode: '0644'
+    timeout: 30
   when: containerd_pkg_file is defined
   become: yes
 

@@ -36,10 +36,18 @@ calico_image_version: "v3.27.2"    # Container image tag
 registry_host: "registry.local"
 registry_port: 5000
 
+# Simple HTTP server settings used to distribute offline assets
+asset_server_port: 8080
+asset_server_host: "{{ registry_host }}"
+
 # NVIDIA GPU configuration
 nvidia_driver_runfile: "NVIDIA-Linux-x86_64-535.129.03.run"
 nvidia_toolkit_version: "1.15.0"        # Container toolkit package
 device_plugin_version: "v0.15.0"        # NVIDIA device plugin image tag
+
+# List of NVIDIA container toolkit package filenames served by the asset server
+nvidia_packages:
+  - "nvidia-container-toolkit_{{ nvidia_toolkit_version }}-1_amd64.deb"
 
 # Hosts file configuration
 add_registry_host_entry: true            # Whether to map registry_host in /etc/hosts

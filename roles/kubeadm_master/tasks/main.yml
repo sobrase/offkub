@@ -59,11 +59,12 @@
   when: not pki_dir.stat.exists
   become: true
 
-- name: Copy Calico manifest
-  copy:
-    src: "{{ offline_image_dir }}/calico.yaml"
+- name: Download Calico manifest from asset server
+  get_url:
+    url: "http://{{ asset_server_host }}:{{ asset_server_port }}/images/calico.yaml"
     dest: /tmp/calico.yaml
     mode: '0644'
+    timeout: 30
   become: true
 
 - name: Apply Calico manifest

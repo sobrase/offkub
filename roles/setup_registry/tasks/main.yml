@@ -8,12 +8,13 @@
     mode: '0755'
   become: yes
 
-# Copy the Docker engine .deb files from the control host
-- name: Copy Docker packages to node
-  copy:
-    src: "{{ offline_pkg_dir }}/{{ item }}"
+# Download the Docker engine .deb files from the master HTTP service
+- name: Download Docker packages from asset server
+  get_url:
+    url: "http://{{ asset_server_host }}:{{ asset_server_port }}/pkgs/{{ item }}"
     dest: "/tmp/docker_debs/{{ item }}"
     mode: '0644'
+    timeout: 30
   loop: "{{ registry_docker_packages }}"
   become: yes
 
@@ -49,11 +50,12 @@
     registry_image_tar: "registry_2.8.2.tar"
 
 # Load the registry image from local tarball
-- name: Copy registry image tarball
-  copy:
-    src: "{{ offline_image_dir }}/{{ registry_image_tar }}"
+- name: Download registry image tarball from asset server
+  get_url:
+    url: "http://{{ asset_server_host }}:{{ asset_server_port }}/images/{{ registry_image_tar }}"
     dest: /tmp/registry.tar
     mode: '0644'
+    timeout: 60
   become: yes
 
 - name: Load registry image
@@ -90,10 +92,20 @@
       - "calico-kube-controllers_{{ calico_image_version }}.tar"
     nvidia_plugin_image: "nvidia-device-plugin_{{ device_plugin_version }}.tar"
 
+# Download Kubernetes core image tarballs
+- name: Download Kubernetes core images
+  get_url:
+    url: "http://{{ asset_server_host }}:{{ asset_server_port }}/images/{{ item }}"
+    dest: "/tmp/{{ item }}"
+    mode: '0644'
+    timeout: 60
+  loop: "{{ kube_core_images }}"
+  become: yes
+
 # Load Kubernetes core images and push them to the local registry
 - name: Load and push Kubernetes core images
   shell: |
-    img=$(docker load -i {{ offline_image_dir }}/{{ item }} | awk '/Loaded image:/ {print $3}')
+    img=$(docker load -i /tmp/{{ item }} | awk '/Loaded image:/ {print $3}')
     name=$(echo "$img" | awk -F/ '{print $NF}')
     docker tag $img {{ registry_host }}:{{ registry_port }}/$name
     docker push {{ registry_host }}:{{ registry_port }}/$name
@@ -103,10 +115,20 @@
   loop: "{{ kube_core_images }}"
   become: yes
 
+# Download Calico images
+- name: Download Calico images
+  get_url:
+    url: "http://{{ asset_server_host }}:{{ asset_server_port }}/images/{{ item }}"
+    dest: "/tmp/{{ item }}"
+    mode: '0644'
+    timeout: 60
+  loop: "{{ calico_images }}"
+  become: yes
+
 # Load Calico networking images and push to the registry
 - name: Load and push Calico images
   shell: |
-    img=$(docker load -i {{ offline_image_dir }}/{{ item }} | awk '/Loaded image:/ {print $3}')
+    img=$(docker load -i /tmp/{{ item }} | awk '/Loaded image:/ {print $3}')
     name=$(echo "$img" | awk -F/ '{print $NF}')
     docker tag $img {{ registry_host }}:{{ registry_port }}/$name
     docker push {{ registry_host }}:{{ registry_port }}/$name
@@ -116,10 +138,19 @@
   loop: "{{ calico_images }}"
   become: yes
 
+# Download NVIDIA device plugin image
+- name: Download NVIDIA device plugin image
+  get_url:
+    url: "http://{{ asset_server_host }}:{{ asset_server_port }}/images/{{ nvidia_plugin_image }}"
+    dest: "/tmp/{{ nvidia_plugin_image }}"
+    mode: '0644'
+    timeout: 60
+  become: yes
+
 # Load NVIDIA device plugin image and push
 - name: Load and push NVIDIA device plugin image
   shell: |
-    img=$(docker load -i {{ offline_image_dir }}/{{ nvidia_plugin_image }} | awk '/Loaded image:/ {print $3}')
+    img=$(docker load -i /tmp/{{ nvidia_plugin_image }} | awk '/Loaded image:/ {print $3}')
     name=$(echo "$img" | awk -F/ '{print $NF}')
     docker tag $img {{ registry_host }}:{{ registry_port }}/$name
     docker push {{ registry_host }}:{{ registry_port }}/$name
