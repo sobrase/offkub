@@ -1,9 +1,9 @@
 [masters]
-master1
+10.0.1.103
+10.0.1.100
+10.0.1.101
 
 [workers]
-worker1
-gpu1
+10.0.1.104
 
 [gpu]
-gpu1
