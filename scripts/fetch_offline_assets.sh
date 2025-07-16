@@ -50,6 +50,10 @@ containerd_pkg_file="containerd.io_${containerd_version}-1_amd64.deb"
 
 mkdir -p "$offline_pkg_dir" "$offline_image_dir"
 
+# Temporary directory used for apt downloads to avoid permission issues with
+# the _apt sandbox user. Files are moved to $offline_pkg_dir afterwards.
+download_tmp=$(mktemp -d)
+
 # Function to download a deb by name/version using apt-get download
 fetch_deb() {
   local file="$1"
@@ -58,9 +62,14 @@ fetch_deb() {
   local version="${ver_arch%_amd64.deb}"
   version="${version//%3a/:}"
   echo "Downloading $name=$version"
+  pushd "$download_tmp" >/dev/null
   apt-get -y download "$name=$version"
-  mv "$name"_"${version//:/%3a}"_amd64.deb "$offline_pkg_dir/$file" 2>/dev/null || \
-    mv "$name"_*_amd64.deb "$offline_pkg_dir/$file"
+  local dl_file="${name}_${version//:/%3a}_amd64.deb"
+  if [[ ! -f $dl_file ]]; then
+    dl_file=$(ls ${name}_*_amd64.deb | head -n1)
+  fi
+  mv "$dl_file" "$offline_pkg_dir/$file"
+  popd >/dev/null
 }
 
 cd "$offline_pkg_dir"
@@ -120,5 +129,8 @@ docker save nvcr.io/nvidia/k8s-device-plugin:${device_plugin_version} \
 curl -L \
   -o calico.yaml \
   "https://raw.githubusercontent.com/projectcalico/calico/${calico_version}/manifests/calico.yaml"
+
+# Cleanup temporary download directory
+rm -rf "$download_tmp"
 
 echo "All assets saved under $offline_pkg_dir and $offline_image_dir"
