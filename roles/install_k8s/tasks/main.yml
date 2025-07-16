@@ -38,9 +38,9 @@
     deb: "/tmp/k8s_debs/{{ item }}"
     state: present
   loop:
-    - "conntrack_1.4.7-1_amd64.deb"
+    - "conntrack_1:1.4.7-1+b2_amd64.deb"
     - "socat_1.7.4.4-2_amd64.deb"
-    - "ebtables_2.0.11-4_amd64.deb"
+    - "ebtables_2.0.11-5_amd64.deb"
   become: yes
 
 # Install Kubernetes support binaries
@@ -49,8 +49,8 @@
     deb: "/tmp/k8s_debs/{{ item }}"
     state: present
   loop:
-    - "cri-tools_1.28.0-1_amd64.deb"
-    - "kubernetes-cni_1.3.0-1_amd64.deb"
+    - "cri-tools_1.32.0-1.1_amd64.deb"
+    - "kubernetes-cni_1.6.0-1.1_amd64.deb"
   become: yes
 
 # Install main Kubernetes binaries
