@@ -9,20 +9,20 @@ kubernetes_packages:
   - kubeadm_1.32.0-1.1_amd64.deb
   - kubelet_1.32.0-1.1_amd64.deb
   - kubectl_1.32.0-1.1_amd64.deb
-  - kubernetes-cni_1.3.0-1_amd64.deb
-  - cri-tools_1.28.0-1_amd64.deb
+  - kubernetes-cni_1.6.0-1.1_amd64.deb
+  - cri-tools_1.32.0-1.1_amd64.deb
   - socat_1.7.4.4-2_amd64.deb
-  - conntrack_1.4.7-1_amd64.deb
-  - ebtables_2.0.11-4_amd64.deb
+  - conntrack_1:1.4.7-1+b2_amd64.deb
+  - ebtables_2.0.11-5_amd64.deb
 
 # Container runtime
-containerd_version: "1.7.12"
+containerd_version: "1.7.27"
 
 # Docker packages for the local registry host
 registry_docker_packages:
-  - docker-ce_5%3a24.0.7-1~ubuntu.22.04~jammy_amd64.deb
-  - docker-ce-cli_5%3a24.0.7-1~ubuntu.22.04~jammy_amd64.deb
-  - containerd.io_1.7.12-1_amd64.deb
+  - docker-ce_5:28.3.2-1~debian.12~bookworm_amd64.deb
+  - docker-ce-cli_5:28.3.2-1~debian.12~bookworm_amd64.deb
+  - containerd.io_1.7.27-1_amd64.deb
 
 # Paths used across roles
 offline_pkg_dir: "/opt/offline/pkgs"   # Location where .deb files are stored
