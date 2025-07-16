@@ -31,6 +31,13 @@
     join_command: "{{ join_command_result.stdout }}"
   become: true
 
+- name: Write join command script for workers
+  copy:
+    content: "{{ join_command }}\n"
+    dest: /tmp/join.sh
+    mode: '0755'
+  become: true
+
 - name: Ensure .kube directory exists for root
   file:
     path: /root/.kube
