@@ -68,6 +68,20 @@ if [[ ! -f /etc/apt/sources.list.d/kubernetes.list ]]; then
   echo "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v${kube_minor}/deb/ /" \
     > /etc/apt/sources.list.d/kubernetes.list
 fi
+
+# Configure Docker apt repository for Debian 12 following the official
+# installation instructions. Only add the repository if it's missing.
+if [[ ! -f /etc/apt/sources.list.d/docker.list ]]; then
+  echo "Adding Docker apt repository"
+  mkdir -p -m 0755 /etc/apt/keyrings
+  curl -fsSL https://download.docker.com/linux/debian/gpg \
+    -o /etc/apt/keyrings/docker.asc
+  chmod a+r /etc/apt/keyrings/docker.asc
+  echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian \
+    $(. /etc/os-release && echo \"$VERSION_CODENAME\") stable" \
+    > /etc/apt/sources.list.d/docker.list
+fi
+
 apt-get update
 apt-get install -y apt-transport-https ca-certificates curl gpg
 
