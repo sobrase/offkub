@@ -149,9 +149,9 @@ else
     "registry.k8s.io/kube-controller-manager:v${kube_version}"
     "registry.k8s.io/kube-scheduler:v${kube_version}"
     "registry.k8s.io/kube-proxy:v${kube_version}"
-    "registry.k8s.io/etcd:3.5.9-0"
-    "registry.k8s.io/coredns/coredns:v1.10.1"
-    "registry.k8s.io/pause:3.9"
+    "registry.k8s.io/etcd:3.5.16-0"
+    "registry.k8s.io/coredns/coredns:v1.11.3"
+    "registry.k8s.io/pause:3.10"
   )
 fi
 
