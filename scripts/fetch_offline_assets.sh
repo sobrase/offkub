@@ -112,9 +112,9 @@ fetch_deb() {
 
 cd "$offline_pkg_dir"
 for pkg in "${kubernetes_packages[@]}" "${registry_packages[@]}" "$containerd_pkg_file"; do
-  # kubernetes-cni is fetched automatically as a dependency of other
-  # Kubernetes packages, so skip explicitly downloading it here
-  if [[ $pkg == kubernetes-cni_* ]]; then
+  # kubernetes-cni and cri-tools are fetched automatically as dependencies
+  # of other Kubernetes packages, so skip explicitly downloading them here
+  if [[ $pkg == kubernetes-cni_* || $pkg == cri-tools_* ]]; then
     continue
   fi
   fetch_deb "$pkg"
