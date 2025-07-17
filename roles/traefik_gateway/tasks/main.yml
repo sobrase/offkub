@@ -7,14 +7,64 @@
   become: true
 
 - name: Render Traefik manifest
-  template:
-    src: role.yaml.j2
-    dest: /tmp/traefik.yaml
+
+- name: Copy Gateway API standard CRDs
+  copy:
+    src: standard-install.yaml
+    dest: /tmp/standard-install.yaml
     mode: '0644'
   become: true
 
-- name: Apply Traefik manifest
-  shell: kubectl apply -f /tmp/traefik.yaml
+- name: Apply standard CRDs
+  shell: kubectl apply -f /tmp/standard-install.yaml
+  environment: "{{ kubectl_env }}"
+  become: true
+
+- name: Copy Gateway API experimental CRDs
+  copy:
+    src: experimental-install.yaml
+    dest: /tmp/experimental-install.yaml
+    mode: '0644'
+  become: true
+
+- name: Apply experimental CRDs
+  shell: kubectl apply -f /tmp/experimental-install.yaml
+  environment: "{{ kubectl_env }}"
+  become: true
+
+- name: Copy Traefik controller manifest
+  copy:
+    src: traefik-controller.yaml
+    dest: /tmp/traefik-controller.yaml
+    mode: '0644'
+  become: true
+
+- name: Apply Traefik controller
+  shell: kubectl apply -f /tmp/traefik-controller.yaml
+  environment: "{{ kubectl_env }}"
+  become: true
+
+- name: Copy GatewayClass manifest
+  copy:
+    src: gatewayclass.yaml
+    dest: /tmp/gatewayclass.yaml
+    mode: '0644'
+  become: true
+
+- name: Apply GatewayClass
+  shell: kubectl apply -f /tmp/gatewayclass.yaml
+  environment: "{{ kubectl_env }}"
+  become: true
+
+- name: Copy Gateway manifest
+  copy:
+    src: gateway.yaml
+    dest: /tmp/gateway.yaml
+    mode: '0644'
+  become: true
+
+- name: Apply Gateway
+  shell: kubectl apply -f /tmp/gateway.yaml
   environment: "{{ kubectl_env }}"
   become: true
 
