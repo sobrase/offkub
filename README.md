@@ -41,7 +41,9 @@ Calico's manifest is applied in two phases. The playbook first installs its
 CustomResourceDefinitions and waits until the `FelixConfiguration` CRD becomes
 available before applying the rest of the resources. This avoids failures that
 can occur when the API server has not yet processed the CRDs during the initial
-apply.
+apply. After the manifest is applied, the playbook ensures all Calico pods
+reach the `Running` phase. If they remain pending, the kubelet service is
+restarted on every node and the readiness check is retried.
 
 
 The `traefik_gateway` role deploys a Traefik Gateway controller and related
