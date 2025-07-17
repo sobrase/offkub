@@ -162,15 +162,35 @@
       environment: "{{ kubectl_env }}"
       become: true
 
-    - name: Wait for Calico pods to be ready
-      shell: |
-        kubectl get pods -n kube-system -l k8s-app=calico-node -o jsonpath='{.items[*].status.phase}'
-      register: calico_status
-      until: calico_status.stdout.split() | unique == ['Running']
-      retries: 20
-      delay: 15
-      environment: "{{ kubectl_env }}"
-      changed_when: false
-      become: true
+    - block:
+        - name: Wait for Calico pods to be ready
+          shell: |
+            kubectl get pods -n kube-system -l k8s-app=calico-node -o jsonpath='{.items[*].status.phase}'
+          register: calico_status
+          until: calico_status.stdout.split() | unique == ['Running']
+          retries: 20
+          delay: 15
+          environment: "{{ kubectl_env }}"
+          changed_when: false
+          become: true
+      rescue:
+        - name: Restart kubelet on all nodes
+          service:
+            name: kubelet
+            state: restarted
+          delegate_to: "{{ item }}"
+          loop: "{{ groups['all'] }}"
+          become: yes
+
+        - name: Wait for Calico pods after kubelet restart
+          shell: |
+            kubectl get pods -n kube-system -l k8s-app=calico-node -o jsonpath='{.items[*].status.phase}'
+          register: calico_status_after
+          until: calico_status_after.stdout.split() | unique == ['Running']
+          retries: 20
+          delay: 15
+          environment: "{{ kubectl_env }}"
+          changed_when: false
+          become: true
   when: is_first_master
 
