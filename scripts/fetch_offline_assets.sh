@@ -26,13 +26,14 @@ fi
 
 read -r offline_pkg_dir offline_image_dir kube_version kube_version_pkgs \
         registry_version containerd_version calico_version calico_image_version \
-        device_plugin_version <<< "$(python3 - <<PY
+        device_plugin_version traefik_version registry_host registry_port <<< "$(python3 - <<PY
 import yaml,sys
 with open('$VARS_FILE') as f:
     data = yaml.safe_load(f)
 fields = ['offline_pkg_dir','offline_image_dir','kube_version',
           'kube_version_pkgs','registry_version','containerd_version','calico_version',
-          'calico_image_version','device_plugin_version']
+          'calico_image_version','device_plugin_version','traefik_version',
+          'registry_host','registry_port']
 print(' '.join(str(data.get(k,'')) for k in fields))
 PY
 )"
@@ -56,6 +57,8 @@ PY
 containerd_pkg_file="containerd.io_${containerd_version}-1_amd64.deb"
 
 mkdir -p "$offline_pkg_dir" "$offline_image_dir"
+gateway_files_dir="$ROOT_DIR/roles/traefik_gateway/files"
+mkdir -p "$gateway_files_dir"
 
 # Configure Kubernetes apt repository for Debian 12 based on the official
 # installation instructions. Only add the repo if it's missing.
@@ -163,6 +166,10 @@ for img in "${k8s_images[@]}"; do
   echo "Saved $img to $file"
 done
 
+# Traefik image
+docker pull traefik:v${traefik_version}
+docker save traefik:v${traefik_version} -o "traefik_v${traefik_version}.tar"
+
 # Calico images
 calico_images=(
   "docker.io/calico/cni:${calico_image_version}"
@@ -204,6 +211,113 @@ sed -i '/name: CLUSTER_TYPE/{n;s/.*/              value: "k8s,bgp"/}' calico.yam
 sed -i '/name: CALICO_IPV4POOL_IPIP/{n;s/.*/              value: "Never"/}' calico.yaml
 sed -i '/name: CALICO_IPV4POOL_VXLAN/{n;s/.*/              value: "Never"/}' calico.yaml
 
+# Gateway API CRDs
+curl -L -o "$gateway_files_dir/standard-install.yaml" \
+  "https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.2.1/standard-install.yaml"
+curl -L -o "$gateway_files_dir/experimental-install.yaml" \
+  "https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.2.1/experimental-install.yaml"
+
+# Traefik Gateway controller manifest
+cat > "$gateway_files_dir/traefik-controller.yaml" <<EOF
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: traefik
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: traefik-controller
+  namespace: traefik
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: traefik
+  namespace: traefik
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: traefik-lb
+  template:
+    metadata:
+      labels:
+        app: traefik-lb
+    spec:
+      serviceAccountName: traefik-controller
+      containers:
+        - name: traefik
+          image: ${registry_host}:${registry_port}/traefik:v${traefik_version}
+          args:
+            - --entryPoints.web.address=:80
+            - --entryPoints.websecure.address=:443
+            - --experimental.kubernetesgateway
+            - --providers.kubernetesgateway
+          ports:
+            - name: web
+              containerPort: 80
+            - name: websecure
+              containerPort: 443
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: traefik
+  namespace: traefik
+spec:
+  type: LoadBalancer
+  selector:
+    app: traefik-lb
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: web
+      name: web
+    - protocol: TCP
+      port: 443
+      targetPort: websecure
+# Last line of controller manifest
+      name: websecure
+EOF
+
+# GatewayClass and Gateway definitions
+cat > "$gateway_files_dir/gatewayclass.yaml" <<EOF
+apiVersion: gateway.networking.k8s.io/v1
+kind: GatewayClass
+metadata:
+  name: traefik-gw-class
+spec:
+  controllerName: traefik.io/gateway-controller
+EOF
+
+cat > "$gateway_files_dir/gateway.yaml" <<EOF
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: traefik-gateway
+  namespace: traefik
+spec:
+  gatewayClassName: traefik-gw-class
+  listeners:
+  - name: http
+    protocol: HTTP
+    port: 80
+    allowedRoutes:
+      namespaces:
+        from: All
+  - name: https
+    protocol: HTTPS
+    port: 443
+    tls:
+      mode: Terminate
+      certificateRefs:
+        - kind: Secret
+          name: traefik-cert
+    allowedRoutes:
+      namespaces:
+        from: All
+EOF
 # Cleanup temporary download directory
 rm -rf "$download_tmp"
 
