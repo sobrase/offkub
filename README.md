@@ -70,3 +70,8 @@ Provide the cunoFS license key via the `cunofs_license_key` variable to
 generate a `cunofs-license` Secret during deployment. The driver manifests
 will be installed into the namespace specified by `cunofs_namespace`.
 
+After Traefik is set up, the playbook automatically runs the
+`cunofs-csi-driver` role to deploy the cunoFS CSI driver from the locally
+extracted Helm chart. This step requires no internet access and completes the
+offline Kubernetes installation.
+
