@@ -38,6 +38,7 @@ offline_image_dir: "/opt/offline/images" # Location of saved container images
 calico_version: "v3.27.2"           # Manifest version
 calico_image_version: "v3.27.2"    # Container image tag
 traefik_version: "2.11.7"          # Traefik image tag
+whoami_version: "v1.10.1"          # traefik/whoami image tag used for tests
 helm_version: "v3.18.4"            # Helm CLI version used when fetching assets
 
 # Private registry settings

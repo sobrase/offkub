@@ -18,4 +18,7 @@ Air‑gapped support is achieved by referencing images from the local registry a
 ## Customization
 Edit `gatewayclass.yaml` or `gateway.yaml` to adjust the controller name, listeners or TLS settings. These files are static and can be replaced with your own versions if different configuration is required.
 
-Set `deploy_test_route: true` to automatically deploy the `whoami` service and associated `HTTPRoute` after the controller is running. Ensure the whoami image is present in your private registry if using an air‑gapped environment.
+Set `deploy_test_route: true` to automatically deploy the `whoami` service and
+associated `HTTPRoute` after the controller is running. The
+`scripts/fetch_offline_assets.sh` helper downloads this image so it can be
+loaded into the local registry during `setup_registry`.

@@ -53,6 +53,10 @@ The `sample_app` role provides a minimal Deployment, Service and HTTPRoute that
 use only local manifests and images. It allows quick end‑to‑end testing of the
 cluster once the gateway is running.
 
+`scripts/fetch_offline_assets.sh` now also saves the `traefik/whoami` image
+used by the optional test route so the gateway can serve traffic without
+external access.
+
 `scripts/fetch_offline_assets.sh` also downloads the cunoFS CSI Helm chart and
 its container images. The chart is extracted under
 `roles/cunofs-csi-driver/files/chart` and the tarred images are saved in
