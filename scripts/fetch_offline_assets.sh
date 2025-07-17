@@ -180,6 +180,10 @@ done
 docker pull traefik:v${traefik_version}
 docker save traefik:v${traefik_version} -o "traefik_v${traefik_version}.tar"
 
+# Python image for the sample application
+docker pull python:3.12-alpine
+docker save python:3.12-alpine -o python_3.12-alpine.tar
+
 # Calico images
 calico_images=(
   "docker.io/calico/cni:${calico_image_version}"

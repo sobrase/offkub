@@ -1,9 +1,21 @@
 ---
-# Deploy a simple application using offline manifests
+# Deploy a simple web server using offline manifests
 - name: Set kubectl environment
   set_fact:
     kubectl_env:
       KUBECONFIG: /etc/kubernetes/admin.conf
+  become: true
+
+- name: Render web content ConfigMap
+  template:
+    src: configmap.yaml.j2
+    dest: /tmp/{{ sample_app_name }}-configmap.yaml
+    mode: '0644'
+  become: true
+
+- name: Apply web content ConfigMap
+  shell: kubectl apply -f /tmp/{{ sample_app_name }}-configmap.yaml
+  environment: "{{ kubectl_env }}"
   become: true
 
 - name: Render deployment manifest

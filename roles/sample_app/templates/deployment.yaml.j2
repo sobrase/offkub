@@ -13,8 +13,17 @@ spec:
       labels:
         app: {{ sample_app_name }}
     spec:
+      volumes:
+      - name: content
+        configMap:
+          name: {{ sample_app_name }}-content
       containers:
       - name: {{ sample_app_name }}
         image: {{ sample_app_image }}
+        command: ["python3", "-m", "http.server", "80"]
+        workingDir: /usr/share/{{ sample_app_name }}
+        volumeMounts:
+        - name: content
+          mountPath: /usr/share/{{ sample_app_name }}
         ports:
         - containerPort: 80
