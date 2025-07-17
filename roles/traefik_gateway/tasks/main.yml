@@ -1,45 +1,54 @@
 ---
-# Deploy Traefik Ingress controller using offline manifests
+# Deploy Traefik Gateway controller using offline manifests
 - name: Set kubectl environment
   set_fact:
     kubectl_env:
       KUBECONFIG: /etc/kubernetes/admin.conf
   become: true
 
-- name: Render Traefik manifest
-
-- name: Copy Gateway API standard CRDs
+- name: Copy Gateway API CRDs
   copy:
     src: standard-install.yaml
     dest: /tmp/standard-install.yaml
     mode: '0644'
   become: true
 
-- name: Apply standard CRDs
+- name: Apply Gateway API CRDs
   shell: kubectl apply -f /tmp/standard-install.yaml
   environment: "{{ kubectl_env }}"
   become: true
 
-- name: Copy Gateway API experimental CRDs
-  copy:
-    src: experimental-install.yaml
-    dest: /tmp/experimental-install.yaml
-    mode: '0644'
-  become: true
-
-- name: Apply experimental CRDs
-  shell: kubectl apply -f /tmp/experimental-install.yaml
+- name: Ensure traefik-system namespace exists
+  shell: |
+    cat <<EOF2 | kubectl apply -f -
+    apiVersion: v1
+    kind: Namespace
+    metadata:
+      name: traefik-system
+    EOF2
   environment: "{{ kubectl_env }}"
   become: true
 
-- name: Copy Traefik controller manifest
+- name: Copy Traefik RBAC manifest
+  copy:
+    src: rbac.yaml
+    dest: /tmp/traefik-rbac.yaml
+    mode: '0644'
+  become: true
+
+- name: Apply Traefik RBAC manifest
+  shell: kubectl apply -f /tmp/traefik-rbac.yaml
+  environment: "{{ kubectl_env }}"
+  become: true
+
+- name: Copy Traefik controller deployment
   copy:
     src: traefik-controller.yaml
     dest: /tmp/traefik-controller.yaml
     mode: '0644'
   become: true
 
-- name: Apply Traefik controller
+- name: Deploy Traefik controller
   shell: kubectl apply -f /tmp/traefik-controller.yaml
   environment: "{{ kubectl_env }}"
   become: true
@@ -51,7 +60,7 @@
     mode: '0644'
   become: true
 
-- name: Apply GatewayClass
+- name: Apply GatewayClass manifest
   shell: kubectl apply -f /tmp/gatewayclass.yaml
   environment: "{{ kubectl_env }}"
   become: true
@@ -63,13 +72,13 @@
     mode: '0644'
   become: true
 
-- name: Apply Gateway
+- name: Apply Gateway manifest
   shell: kubectl apply -f /tmp/gateway.yaml
   environment: "{{ kubectl_env }}"
   become: true
 
 - name: Wait for Traefik deployment rollout
-  shell: kubectl rollout status deployment/traefik -n traefik --timeout=120s
+  shell: kubectl rollout status deployment/traefik -n traefik-system --timeout=120s
   register: traefik_rollout
   retries: 5
   delay: 30
