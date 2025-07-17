@@ -1,4 +1,4 @@
 ---
 # Default variables for the traefik_gateway role
 # Whether to deploy a sample HTTPRoute and whoami service for testing
-deploy_test_route: false
+deploy_test_route: true
