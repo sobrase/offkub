@@ -88,6 +88,7 @@
       - "kube-controllers_{{ calico_image_version }}.tar"
     nvidia_plugin_image: "nvidia-device-plugin_{{ device_plugin_version }}.tar"
     traefik_image: "traefik_v{{ traefik_version }}.tar"
+    python_image: "python_3.12-alpine.tar"
 
 # Download Kubernetes core image tarballs
 - name: Download Kubernetes core images
@@ -165,6 +166,25 @@
 - name: Load and push Traefik image
   shell: |
     img=$(docker load -i /tmp/{{ traefik_image }} | awk '/Loaded image:/ {print $3}')
+    name=$(echo "$img" | awk -F/ '{print $NF}')
+    docker tag $img {{ registry_host }}:{{ registry_port }}/$name
+    docker push {{ registry_host }}:{{ registry_port }}/$name
+  args:
+    executable: /bin/bash
+  become: yes
+
+# Python image for the sample application
+- name: Download Python image for sample app
+  get_url:
+    url: "http://{{ asset_server_host }}:{{ asset_server_port }}/images/{{ python_image }}"
+    dest: "/tmp/{{ python_image }}"
+    mode: '0644'
+    timeout: 60
+  become: yes
+
+- name: Load and push Python image
+  shell: |
+    img=$(docker load -i /tmp/{{ python_image }} | awk '/Loaded image:/ {print $3}')
     name=$(echo "$img" | awk -F/ '{print $NF}')
     docker tag $img {{ registry_host }}:{{ registry_port }}/$name
     docker push {{ registry_host }}:{{ registry_port }}/$name

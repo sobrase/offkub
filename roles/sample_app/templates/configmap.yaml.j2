@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ sample_app_name }}-content
+  namespace: {{ sample_app_namespace }}
+data:
+  index.html: |
+    {{ sample_app_index_content | indent(4) }}
