@@ -7,7 +7,8 @@ Air‑gapped support is achieved by referencing images from the local registry a
 
 ## Files
 - `standard-install.yaml` – Gateway API CRDs
-- `traefik-controller.yaml` – Traefik Deployment and Service
+- `traefik-controller.yaml` – Traefik Deployment using `hostNetwork` so that
+  the node listens directly on ports 80 and 443
 - `rbac.yaml` – permissions for the controller
 - `gatewayclass.yaml` – default `GatewayClass`
 - `gateway.yaml` – default `Gateway` with HTTP and HTTPS listeners
