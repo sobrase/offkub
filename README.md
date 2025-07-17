@@ -36,3 +36,7 @@ CustomResourceDefinitions and waits until the `FelixConfiguration` CRD becomes
 available before applying the rest of the resources. This avoids failures that
 can occur when the API server has not yet processed the CRDs during the initial
 apply.
+
+The `traefik_gateway` role deploys a Traefik Gateway controller and related
+Gateway API resources. All manifests use container images from the local
+registry so the gateway can be installed entirely offline.
