@@ -1,0 +1,53 @@
+---
+# Deploy a simple application using offline manifests
+- name: Set kubectl environment
+  set_fact:
+    kubectl_env:
+      KUBECONFIG: /etc/kubernetes/admin.conf
+  become: true
+
+- name: Render deployment manifest
+  template:
+    src: deployment.yaml.j2
+    dest: /tmp/{{ sample_app_name }}-deployment.yaml
+    mode: '0644'
+  become: true
+
+- name: Apply deployment manifest
+  shell: kubectl apply -f /tmp/{{ sample_app_name }}-deployment.yaml
+  environment: "{{ kubectl_env }}"
+  become: true
+
+- name: Render service manifest
+  template:
+    src: service.yaml.j2
+    dest: /tmp/{{ sample_app_name }}-service.yaml
+    mode: '0644'
+  become: true
+
+- name: Apply service manifest
+  shell: kubectl apply -f /tmp/{{ sample_app_name }}-service.yaml
+  environment: "{{ kubectl_env }}"
+  become: true
+
+- name: Render HTTPRoute manifest
+  template:
+    src: httproute.yaml.j2
+    dest: /tmp/{{ sample_app_name }}-httproute.yaml
+    mode: '0644'
+  become: true
+
+- name: Apply HTTPRoute manifest
+  shell: kubectl apply -f /tmp/{{ sample_app_name }}-httproute.yaml
+  environment: "{{ kubectl_env }}"
+  become: true
+
+- name: Wait for application deployment rollout
+  shell: kubectl rollout status deployment/{{ sample_app_name }} -n {{ sample_app_namespace }} --timeout=120s
+  register: app_rollout
+  retries: 5
+  delay: 30
+  until: app_rollout.rc == 0
+  environment: "{{ kubectl_env }}"
+  changed_when: false
+  become: true
