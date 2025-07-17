@@ -69,3 +69,4 @@ control_plane_endpoint: "{{ registry_master_ip }}:6443"
 # cunoFS license key
 cunofs_license_key: ""
 cunofs_namespace: "cunofs-system"
+cunofs_version: "1.0.4"

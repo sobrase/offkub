@@ -91,8 +91,7 @@
     python_image: "python_3.12-alpine.tar"
     whoami_image: "whoami_{{ whoami_version }}.tar"
     cunofs_images:
-      - "csi-controller_latest.tar"
-      - "csi-node_latest.tar"
+      - "cunofs-csi_{{ cunofs_version }}.tar"
 
 # Download Kubernetes core image tarballs
 - name: Download Kubernetes core images
