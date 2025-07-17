@@ -58,6 +58,10 @@ fully offline.
 The Helm version used for fetching can be customised via the
 `helm_version` variable in `group_vars/all.yml`.
 
+Fetching the cunoFS images requires credentials for the private Docker
+repository. Run `docker login registry-1.docker.io` before executing the
+script or set `SKIP_CUNOFS=1` to skip downloading the cunoFS assets.
+
 Provide the cunoFS license key via the `cunofs_license_key` variable to
 generate a `cunofs-license` Secret during deployment. The driver manifests
 will be installed into the namespace specified by `cunofs_namespace`.
