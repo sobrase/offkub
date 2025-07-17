@@ -3,7 +3,8 @@
 Utility scripts for preparing an offline Kubernetes deployment.
 
 Use `scripts/fetch_offline_assets.sh` on a machine with internet access to
-retrieve required packages, their dependencies, images and manifests. Copy the resulting
+retrieve required packages, their dependencies, images and manifests. The
+script installs the Helm CLI automatically if it is missing. Copy the resulting
 `offline_pkg_dir` and `offline_image_dir` directories to your air-gapped
 environment. On the master node, start the lightweight HTTP service
 with `scripts/serve_assets.py` to expose these directories to the other
@@ -54,6 +55,8 @@ its container images. The chart is extracted under
 Image references inside the chart are rewritten to use the
 `registry_host`/`registry_port` settings so the manifests can be applied
 fully offline.
+The Helm version used for fetching can be customised via the
+`helm_version` variable in `group_vars/all.yml`.
 
 Provide the cunoFS license key via the `cunofs_license_key` variable to
 generate a `cunofs-license` Secret during deployment. The driver manifests
