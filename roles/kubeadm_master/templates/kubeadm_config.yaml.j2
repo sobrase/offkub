@@ -3,6 +3,7 @@ kind: ClusterConfiguration
 kubernetesVersion: v{{ kube_version }}
 imageRepository: "{{ registry_host }}:{{ registry_port }}"
 clusterName: offline-cluster
+controlPlaneEndpoint: "{{ control_plane_endpoint }}"
 networking:
   podSubnet: "10.244.0.0/16"
 
