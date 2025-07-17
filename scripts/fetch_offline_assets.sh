@@ -213,23 +213,28 @@ if [[ -z "${SKIP_CUNOFS:-}" ]]; then
   mkdir -p "$chart_dir"
   helm pull --untar oci://registry-1.docker.io/cunofs/cunofs-csi-chart -d "$chart_dir"
 
+  # Determine the driver image version from the chart
+  chart_path="$chart_dir/cunofs-csi-chart"
+  mapfile -t cunofs_images < <(
+    helm template "$chart_path" |
+      grep -oE 'cunofs/cunofs-csi:[^" ]+' |
+      sort -u
+  )
+
   # Rewrite image references in the fetched cunoFS manifests to use the
   # local registry. This keeps the deployment fully offline.
   find "$chart_dir" -type f -name '*.yaml' -print0 \
     | xargs -0 sed -i "s#docker.io/cunofs#${registry_host}:${registry_port}/cunofs#g"
 
-  cunofs_images=(
-    "docker.io/cunofs/csi-controller:latest"
-    "docker.io/cunofs/csi-node:latest"
-  )
   for img in "${cunofs_images[@]}"; do
+    full_img="docker.io/${img}"
     base="$(basename "$img")"
     file="${base/:/_}.tar"
-    if docker pull "$img"; then
-      docker save "$img" -o "$file"
-      echo "Saved $img to $file"
+    if docker pull "$full_img"; then
+      docker save "$full_img" -o "$file"
+      echo "Saved $full_img to $file"
     else
-      echo "Warning: failed to pull $img. Provide credentials or set SKIP_CUNOFS=1 to skip" >&2
+      echo "Warning: failed to pull $full_img. Provide credentials or set SKIP_CUNOFS=1 to skip" >&2
     fi
   done
 else
