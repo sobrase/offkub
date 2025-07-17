@@ -32,6 +32,15 @@
       changed_when: false
       become: true
 
+    - name: Wait for API server to be reachable
+      shell: kubectl --kubeconfig /etc/kubernetes/admin.conf get --raw=/healthz
+      register: apiserver_status
+      retries: 20
+      delay: 5
+      until: apiserver_status.rc == 0
+      changed_when: false
+      become: true
+
     - name: Generate base join command for control plane
       shell: kubeadm token create --print-join-command
       register: base_join_cmd
