@@ -7,6 +7,11 @@
   register: kubelet_conf
   become: yes
 
+- name: Reset previous Kubernetes state if present
+  shell: kubeadm reset -f
+  when: not kubelet_conf.stat.exists
+  become: yes
+
 - name: Get join command from master
   command: cat /tmp/join.sh
   register: master_join_cmd
