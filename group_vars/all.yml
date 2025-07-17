@@ -62,3 +62,4 @@ registry_master_ip: "10.0.1.103"                  # Override master IP for regis
 
 # cunoFS license key
 cunofs_license_key: ""
+cunofs_namespace: "cunofs-system"

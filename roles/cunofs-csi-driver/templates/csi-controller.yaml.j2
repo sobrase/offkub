@@ -1,10 +1,8 @@
-# Placeholder controller Deployment for cunofs CSI driver
-# Replace image with one hosted in your private registry
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: cunofs-csi-controller
-  namespace: kube-system
+  namespace: {{ cunofs_namespace }}
 spec:
   replicas: 1
   selector:
@@ -17,5 +15,5 @@ spec:
     spec:
       containers:
         - name: csi-controller
-          image: registry.local/cunofs/csi-controller:latest
+          image: {{ cunofs_controller_image }}
           args: []
