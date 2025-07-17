@@ -191,7 +191,7 @@ curl -L \
 cat <<'EOF' >> calico.yaml
 
 ---
-apiVersion: projectcalico.org/v3
+apiVersion: crd.projectcalico.org/v1
 kind: FelixConfiguration
 metadata:
   name: default
