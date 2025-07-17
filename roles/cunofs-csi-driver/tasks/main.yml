@@ -6,6 +6,18 @@
       KUBECONFIG: /etc/kubernetes/admin.conf
   become: true
 
+- name: Render cunofs license secret manifest
+  template:
+    src: license-secret.yaml.j2
+    dest: /tmp/cunofs-license.yaml
+    mode: '0644'
+  become: true
+
+- name: Apply cunofs license secret
+  shell: kubectl apply -f /tmp/cunofs-license.yaml
+  environment: "{{ kubectl_env }}"
+  become: true
+
 - name: Copy cunofs controller manifest
   copy:
     src: csi-controller.yaml

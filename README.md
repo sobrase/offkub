@@ -47,3 +47,6 @@ its container images. The chart is extracted under
 `roles/cunofs-csi-driver/files/chart` and the tarred images are saved in
 `offline_image_dir` alongside the other archives.
 
+Provide the cunoFS license key via the `cunofs_license_key` variable to
+generate a `cunofs-license` Secret during deployment.
+
