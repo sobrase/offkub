@@ -1,0 +1,29 @@
+---
+# Deploy Traefik Ingress controller using offline manifests
+- name: Set kubectl environment
+  set_fact:
+    kubectl_env:
+      KUBECONFIG: /etc/kubernetes/admin.conf
+  become: true
+
+- name: Render Traefik manifest
+  template:
+    src: role.yaml.j2
+    dest: /tmp/traefik.yaml
+    mode: '0644'
+  become: true
+
+- name: Apply Traefik manifest
+  shell: kubectl apply -f /tmp/traefik.yaml
+  environment: "{{ kubectl_env }}"
+  become: true
+
+- name: Wait for Traefik deployment rollout
+  shell: kubectl rollout status deployment/traefik -n traefik --timeout=120s
+  register: traefik_rollout
+  retries: 5
+  delay: 30
+  until: traefik_rollout.rc == 0
+  environment: "{{ kubectl_env }}"
+  changed_when: false
+  become: true
