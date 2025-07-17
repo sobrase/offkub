@@ -1,0 +1,20 @@
+# Placeholder DaemonSet for cunofs CSI node plugin
+# Replace image with one hosted in your private registry
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: cunofs-csi-node
+  namespace: kube-system
+spec:
+  selector:
+    matchLabels:
+      app: cunofs-csi-node
+  template:
+    metadata:
+      labels:
+        app: cunofs-csi-node
+    spec:
+      containers:
+        - name: csi-node
+          image: registry.local/cunofs/csi-node:latest
+          args: []
