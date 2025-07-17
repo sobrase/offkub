@@ -11,6 +11,11 @@
   register: kubelet_conf
   become: true
 
+- name: Reset previous Kubernetes state if present
+  shell: kubeadm reset -f
+  when: not kubelet_conf.stat.exists
+  become: true
+
 - block:
     - name: Generate kubeadm configuration
       template:
