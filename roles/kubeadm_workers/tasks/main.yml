@@ -40,3 +40,9 @@
     - not kubelet_conf.stat.exists
     - join_result.rc == 0
   become: yes
+
+- name: Schedule kubelet restart
+  command: /bin/true
+  notify: Restart kubelet
+  changed_when: false
+  become: yes
