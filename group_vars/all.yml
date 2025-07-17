@@ -60,5 +60,9 @@ nvidia_packages:
 add_registry_host_entry: true            # Whether to map registry_host in /etc/hosts
 registry_master_ip: "10.0.1.103"                  # Override master IP for registry host if needed
 
+# Stable endpoint used for joining additional control plane nodes. Defaults to
+# the first master in the inventory followed by the Kubernetes API port.
+control_plane_endpoint: "{{ registry_master_ip }}:6443"
+
 # cunoFS license key
 cunofs_license_key: ""

@@ -22,6 +22,11 @@ control plane nodes. Subsequent masters read the latter file to join the
 cluster with `kubeadm join --control-plane`, while worker nodes continue to use
 `/tmp/join.sh`.
 
+For multi-master setups, the playbook relies on the `control_plane_endpoint`
+variable defined in `group_vars/all.yml`. This value should point to a stable
+address (IP or DNS name) that resolves to the Kubernetes API server. Additional
+control plane nodes reference this endpoint when joining the cluster.
+
 The registry image version can be customized via the `registry_version`
 variable in `group_vars/all.yml`. Ensure the matching tarball is available
 under `offline_image_dir` before running the playbook.
