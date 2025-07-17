@@ -126,6 +126,12 @@
   when: kubelet_conf.stat.exists
   become: true
 
+- name: Schedule kubelet restart
+  command: /bin/true
+  notify: Restart kubelet
+  changed_when: false
+  become: yes
+
 - block:
     - name: Download Calico manifest from asset server
       get_url:
@@ -168,8 +174,3 @@
       become: true
   when: is_first_master
 
-- name: Schedule kubelet restart
-  command: /bin/true
-  notify: Restart kubelet
-  changed_when: false
-  become: yes
