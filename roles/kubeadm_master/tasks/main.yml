@@ -67,7 +67,6 @@
     - name: Get control plane join command from first master
       command: cat /tmp/join-master.sh
       delegate_to: "{{ groups['masters'][0] }}"
-      run_once: true
       register: master_join_cmd
 
     - name: Join this master to the existing control plane
