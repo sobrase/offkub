@@ -32,11 +32,15 @@
       changed_when: false
       become: true
 
-    - name: Generate join command for control plane
-      shell: kubeadm token create --print-join-command --certificate-key {{ cert_key.stdout }} --control-plane
-      register: cp_join_cmd
+    - name: Generate base join command for control plane
+      shell: kubeadm token create --print-join-command
+      register: base_join_cmd
       changed_when: false
       become: true
+
+    - name: Compose full control plane join command
+      set_fact:
+        cp_join_cmd: "{{ base_join_cmd.stdout }} --control-plane --certificate-key {{ cert_key.stdout }}"
 
     - name: Generate join command for workers
       shell: kubeadm token create --print-join-command
@@ -46,7 +50,7 @@
 
     - name: Write control plane join script
       copy:
-        content: "{{ cp_join_cmd.stdout }}\n"
+        content: "{{ cp_join_cmd }}\n"
         dest: /tmp/join-master.sh
         mode: '0755'
       become: true
