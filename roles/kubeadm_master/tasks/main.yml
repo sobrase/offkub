@@ -167,3 +167,9 @@
       changed_when: false
       become: true
   when: is_first_master
+
+- name: Schedule kubelet restart
+  command: /bin/true
+  notify: Restart kubelet
+  changed_when: false
+  become: yes
