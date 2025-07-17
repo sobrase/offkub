@@ -6,6 +6,16 @@
       KUBECONFIG: /etc/kubernetes/admin.conf
   become: true
 
+- name: Deploy cunofs CSI driver via Helm
+  shell: >
+    helm template cunofs {{ role_path }}/files/chart/cunofs-csi-chart
+    --set license={{ cunofs_license_key | quote }} |
+    kubectl apply -f -
+  args:
+    chdir: "{{ role_path }}"
+  environment: "{{ kubectl_env }}"
+  become: true
+
 - name: Render cunofs license secret manifest
   template:
     src: license-secret.yaml.j2
