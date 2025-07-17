@@ -16,9 +16,11 @@ python3 scripts/serve_assets.py -d /opt/offline -p 8080
 Once the service is running, execute the Ansible playbook. All nodes
 will pull packages and images from this local HTTP server.
 
-During initialization the master node writes the `kubeadm` join command to
-`/tmp/join.sh`. Worker nodes read this file to join the cluster without needing
-direct communication with the internet.
+During initialization the first master node now writes two join command
+scripts: `/tmp/join.sh` for workers and `/tmp/join-master.sh` for additional
+control plane nodes. Subsequent masters read the latter file to join the
+cluster with `kubeadm join --control-plane`, while worker nodes continue to use
+`/tmp/join.sh`.
 
 The registry image version can be customized via the `registry_version`
 variable in `group_vars/all.yml`. Ensure the matching tarball is available
