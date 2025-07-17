@@ -199,27 +199,34 @@ docker pull nvcr.io/nvidia/k8s-device-plugin:${device_plugin_version}
 docker save nvcr.io/nvidia/k8s-device-plugin:${device_plugin_version} \
   -o nvidia-device-plugin_${device_plugin_version}.tar
 
-# cunoFS CSI Helm chart and images
-chart_dir="$ROOT_DIR/roles/cunofs-csi-driver/files/chart"
-mkdir -p "$chart_dir"
-helm pull --untar oci://registry-1.docker.io/cunofs/cunofs-csi-chart -d "$chart_dir"
+# cunoFS CSI Helm chart and images (optional)
+if [[ -z "${SKIP_CUNOFS:-}" ]]; then
+  chart_dir="$ROOT_DIR/roles/cunofs-csi-driver/files/chart"
+  mkdir -p "$chart_dir"
+  helm pull --untar oci://registry-1.docker.io/cunofs/cunofs-csi-chart -d "$chart_dir"
 
-# Rewrite image references in the fetched cunoFS manifests to use the
-# local registry. This keeps the deployment fully offline.
-find "$chart_dir" -type f -name '*.yaml' -print0 \
-  | xargs -0 sed -i "s#docker.io/cunofs#${registry_host}:${registry_port}/cunofs#g"
+  # Rewrite image references in the fetched cunoFS manifests to use the
+  # local registry. This keeps the deployment fully offline.
+  find "$chart_dir" -type f -name '*.yaml' -print0 \
+    | xargs -0 sed -i "s#docker.io/cunofs#${registry_host}:${registry_port}/cunofs#g"
 
-cunofs_images=(
-  "docker.io/cunofs/csi-controller:latest"
-  "docker.io/cunofs/csi-node:latest"
-)
-for img in "${cunofs_images[@]}"; do
-  base="$(basename "$img")"
-  file="${base/:/_}.tar"
-  docker pull "$img"
-  docker save "$img" -o "$file"
-  echo "Saved $img to $file"
-done
+  cunofs_images=(
+    "docker.io/cunofs/csi-controller:latest"
+    "docker.io/cunofs/csi-node:latest"
+  )
+  for img in "${cunofs_images[@]}"; do
+    base="$(basename "$img")"
+    file="${base/:/_}.tar"
+    if docker pull "$img"; then
+      docker save "$img" -o "$file"
+      echo "Saved $img to $file"
+    else
+      echo "Warning: failed to pull $img. Provide credentials or set SKIP_CUNOFS=1 to skip" >&2
+    fi
+  done
+else
+  echo "Skipping cunoFS CSI driver assets as SKIP_CUNOFS is set" >&2
+fi
 
 # Calico manifest
 curl -L \
