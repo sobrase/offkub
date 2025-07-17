@@ -21,7 +21,6 @@ spec:
             - --providers.kubernetesgateway=true
             - --entrypoints.web.address=:80
             - --entrypoints.websecure.address=:443
-            - --providers.kubernetesgateway.controllerName=traefik.io/gateway-controller
           ports:
             - name: web
               containerPort: 80
