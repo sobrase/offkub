@@ -1,0 +1,5 @@
+---
+# Default variables for cunofs-csi-driver role
+# Set the image registry and tags to match your offline registry
+cunofs_controller_image: "registry.local/cunofs/csi-controller:latest"
+cunofs_node_image: "registry.local/cunofs/csi-node:latest"
