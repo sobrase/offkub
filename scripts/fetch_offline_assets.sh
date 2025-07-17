@@ -189,6 +189,23 @@ docker pull nvcr.io/nvidia/k8s-device-plugin:${device_plugin_version}
 docker save nvcr.io/nvidia/k8s-device-plugin:${device_plugin_version} \
   -o nvidia-device-plugin_${device_plugin_version}.tar
 
+# cunoFS CSI Helm chart and images
+chart_dir="$ROOT_DIR/roles/cunofs-csi-driver/files/chart"
+mkdir -p "$chart_dir"
+helm pull --untar oci://registry-1.docker.io/cunofs/cunofs-csi-chart -d "$chart_dir"
+
+cunofs_images=(
+  "docker.io/cunofs/csi-controller:latest"
+  "docker.io/cunofs/csi-node:latest"
+)
+for img in "${cunofs_images[@]}"; do
+  base="$(basename "$img")"
+  file="${base/:/_}.tar"
+  docker pull "$img"
+  docker save "$img" -o "$file"
+  echo "Saved $img to $file"
+done
+
 # Calico manifest
 curl -L \
   -o calico.yaml \
