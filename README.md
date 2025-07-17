@@ -46,6 +46,9 @@ registry so the gateway can be installed entirely offline.
 its container images. The chart is extracted under
 `roles/cunofs-csi-driver/files/chart` and the tarred images are saved in
 `offline_image_dir` alongside the other archives.
+Image references inside the chart are rewritten to use the
+`registry_host`/`registry_port` settings so the manifests can be applied
+fully offline.
 
 Provide the cunoFS license key via the `cunofs_license_key` variable to
 generate a `cunofs-license` Secret during deployment.

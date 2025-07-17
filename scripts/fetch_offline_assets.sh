@@ -194,6 +194,11 @@ chart_dir="$ROOT_DIR/roles/cunofs-csi-driver/files/chart"
 mkdir -p "$chart_dir"
 helm pull --untar oci://registry-1.docker.io/cunofs/cunofs-csi-chart -d "$chart_dir"
 
+# Rewrite image references in the fetched cunoFS manifests to use the
+# local registry. This keeps the deployment fully offline.
+find "$chart_dir" -type f -name '*.yaml' -print0 \
+  | xargs -0 sed -i "s#docker.io/cunofs#${registry_host}:${registry_port}/cunofs#g"
+
 cunofs_images=(
   "docker.io/cunofs/csi-controller:latest"
   "docker.io/cunofs/csi-node:latest"
