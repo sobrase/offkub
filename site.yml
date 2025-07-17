@@ -49,5 +49,12 @@
   any_errors_fatal: true
   run_once: true
   roles:
+    - role: cunofs-csi-driver
+
+- hosts: masters
+  become: yes
+  any_errors_fatal: true
+  run_once: true
+  roles:
     - role: post_install_checks
 
