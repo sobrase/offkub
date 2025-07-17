@@ -187,6 +187,23 @@ curl -L \
   -o calico.yaml \
   "https://raw.githubusercontent.com/projectcalico/calico/${calico_version}/manifests/calico.yaml"
 
+# Enable eBPF mode and host networking by default
+cat <<'EOF' >> calico.yaml
+
+---
+apiVersion: projectcalico.org/v3
+kind: FelixConfiguration
+metadata:
+  name: default
+spec:
+  bpfEnabled: true
+EOF
+
+# Ensure networking environment variables match our defaults
+sed -i '/name: CLUSTER_TYPE/{n;s/.*/              value: "k8s,bgp"/}' calico.yaml
+sed -i '/name: CALICO_IPV4POOL_IPIP/{n;s/.*/              value: "Never"/}' calico.yaml
+sed -i '/name: CALICO_IPV4POOL_VXLAN/{n;s/.*/              value: "Never"/}' calico.yaml
+
 # Cleanup temporary download directory
 rm -rf "$download_tmp"
 
