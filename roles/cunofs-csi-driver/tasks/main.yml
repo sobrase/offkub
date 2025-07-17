@@ -6,15 +6,17 @@
       KUBECONFIG: /etc/kubernetes/admin.conf
   become: true
 
-- name: Deploy cunofs CSI driver via Helm
-  shell: >
-    helm template cunofs {{ role_path }}/files/chart/cunofs-csi-chart
-    --set license={{ cunofs_license_key | quote }} |
-    kubectl apply -f -
-  args:
-    chdir: "{{ role_path }}"
+- name: Ensure {{ cunofs_namespace }} namespace exists
+  shell: |
+    cat <<EOF | kubectl apply -f -
+    apiVersion: v1
+    kind: Namespace
+    metadata:
+      name: {{ cunofs_namespace }}
+    EOF
   environment: "{{ kubectl_env }}"
   become: true
+
 
 - name: Render cunofs license secret manifest
   template:
@@ -28,9 +30,9 @@
   environment: "{{ kubectl_env }}"
   become: true
 
-- name: Copy cunofs controller manifest
-  copy:
-    src: csi-controller.yaml
+- name: Render cunofs controller manifest
+  template:
+    src: csi-controller.yaml.j2
     dest: /tmp/cunofs-csi-controller.yaml
     mode: '0644'
   become: true
@@ -40,9 +42,9 @@
   environment: "{{ kubectl_env }}"
   become: true
 
-- name: Copy cunofs node manifest
-  copy:
-    src: csi-node.yaml
+- name: Render cunofs node manifest
+  template:
+    src: csi-node.yaml.j2
     dest: /tmp/cunofs-csi-node.yaml
     mode: '0644'
   become: true

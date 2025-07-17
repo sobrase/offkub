@@ -56,5 +56,6 @@ Image references inside the chart are rewritten to use the
 fully offline.
 
 Provide the cunoFS license key via the `cunofs_license_key` variable to
-generate a `cunofs-license` Secret during deployment.
+generate a `cunofs-license` Secret during deployment. The driver manifests
+will be installed into the namespace specified by `cunofs_namespace`.
 

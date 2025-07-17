@@ -1,8 +1,11 @@
 # cunofs-csi-driver role
 
 This role deploys the cunoFS CSI driver in an air‑gapped Kubernetes cluster.
-It can render the bundled Helm chart using `helm template` and apply the
-generated manifests locally. The chart is expected to be present under
-`files/chart` which is populated by `scripts/fetch_offline_assets.sh`.
-Images reference the local registry and can be tuned via
-`defaults/main.yml`.
+All manifests are templated locally and applied with `kubectl` so no
+internet access is required once the assets have been fetched.
+The chart and container images are downloaded by
+`scripts/fetch_offline_assets.sh` and reference the private registry.
+
+Set `cunofs_license_key` to provide your license string. The driver will be
+installed into the namespace defined by `cunofs_namespace` (default
+`cunofs-system`). Image names can be adjusted in `defaults/main.yml`.
