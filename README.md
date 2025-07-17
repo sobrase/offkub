@@ -48,6 +48,10 @@ The `traefik_gateway` role deploys a Traefik Gateway controller and related
 Gateway API resources. All manifests use container images from the local
 registry so the gateway can be installed entirely offline.
 
+The `sample_app` role provides a minimal Deployment, Service and HTTPRoute that
+use only local manifests and images. It allows quick end‑to‑end testing of the
+cluster once the gateway is running.
+
 `scripts/fetch_offline_assets.sh` also downloads the cunoFS CSI Helm chart and
 its container images. The chart is extracted under
 `roles/cunofs-csi-driver/files/chart` and the tarred images are saved in
