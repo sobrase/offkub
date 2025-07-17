@@ -86,3 +86,31 @@
   environment: "{{ kubectl_env }}"
   changed_when: false
   become: true
+
+- name: Copy test service manifest
+  copy:
+    src: whoami.yaml
+    dest: /tmp/whoami.yaml
+    mode: '0644'
+  when: deploy_test_route
+  become: true
+
+- name: Apply test service manifest
+  shell: kubectl apply -f /tmp/whoami.yaml
+  environment: "{{ kubectl_env }}"
+  when: deploy_test_route
+  become: true
+
+- name: Copy test HTTPRoute manifest
+  copy:
+    src: test-route.yaml
+    dest: /tmp/test-route.yaml
+    mode: '0644'
+  when: deploy_test_route
+  become: true
+
+- name: Apply test HTTPRoute manifest
+  shell: kubectl apply -f /tmp/test-route.yaml
+  environment: "{{ kubectl_env }}"
+  when: deploy_test_route
+  become: true
