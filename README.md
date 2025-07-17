@@ -60,6 +60,8 @@ its container images. The chart is extracted under
 Image references inside the chart are rewritten to use the
 `registry_host`/`registry_port` settings so the manifests can be applied
 fully offline.
+The `setup_registry` role loads these cunoFS image tarballs and pushes the
+images to the local registry so the driver can start without external access.
 The Helm version used for fetching can be customised via the
 `helm_version` variable in `group_vars/all.yml`.
 
