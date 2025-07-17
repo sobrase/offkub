@@ -74,6 +74,22 @@
     timeout: 30
   become: true
 
+- name: Apply Calico CRDs (initial pass)
+  shell: kubectl apply -f /tmp/calico.yaml || true
+  environment: "{{ kubectl_env }}"
+  become: true
+  failed_when: false
+
+- name: Wait for FelixConfiguration CRD
+  shell: kubectl get crd felixconfigurations.crd.projectcalico.org
+  register: crd_result
+  retries: 10
+  delay: 5
+  until: crd_result.rc == 0
+  environment: "{{ kubectl_env }}"
+  changed_when: false
+  become: true
+
 - name: Apply Calico manifest
   shell: kubectl apply -f /tmp/calico.yaml
   environment: "{{ kubectl_env }}"

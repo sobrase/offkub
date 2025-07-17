@@ -28,3 +28,9 @@ The `prepare_system` role configures kernel parameters required for Kubernetes.
 It disables swap, loads the `overlay` and `br_netfilter` modules, and enables
 IPv4 forwarding via `/etc/sysctl.d/k8s.conf`. These settings ensure that
 `kubeadm` passes preflight checks in fully air‑gapped deployments.
+
+Calico's manifest is applied in two phases. The playbook first installs its
+CustomResourceDefinitions and waits until the `FelixConfiguration` CRD becomes
+available before applying the rest of the resources. This avoids failures that
+can occur when the API server has not yet processed the CRDs during the initial
+apply.
