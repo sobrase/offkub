@@ -47,7 +47,7 @@
       become: true
 
     - name: Generate base join command for control plane
-      shell: kubeadm token create --print-join-command
+      shell: kubeadm token create --kubeconfig /etc/kubernetes/admin.conf --print-join-command
       register: base_join_cmd
       changed_when: false
       become: true
@@ -57,7 +57,7 @@
         cp_join_cmd: "{{ base_join_cmd.stdout }} --control-plane --certificate-key {{ cert_key.stdout }}"
 
     - name: Generate join command for workers
-      shell: kubeadm token create --print-join-command
+      shell: kubeadm token create --kubeconfig /etc/kubernetes/admin.conf --print-join-command
       register: worker_join_cmd
       changed_when: false
       become: true
