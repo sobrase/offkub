@@ -26,14 +26,14 @@ fi
 
 read -r offline_pkg_dir offline_image_dir kube_version kube_version_pkgs \
         registry_version containerd_version calico_version calico_image_version \
-        device_plugin_version traefik_version registry_host registry_port <<< "$(python3 - <<PY
+        device_plugin_version traefik_version helm_version registry_host registry_port <<< "$(python3 - <<PY
 import yaml,sys
 with open('$VARS_FILE') as f:
     data = yaml.safe_load(f)
 fields = ['offline_pkg_dir','offline_image_dir','kube_version',
           'kube_version_pkgs','registry_version','containerd_version','calico_version',
           'calico_image_version','device_plugin_version','traefik_version',
-          'registry_host','registry_port']
+          'helm_version','registry_host','registry_port']
 print(' '.join(str(data.get(k,'')) for k in fields))
 PY
 )"
@@ -87,6 +87,16 @@ fi
 
 apt-get update
 apt-get install -y apt-transport-https ca-certificates curl gpg
+
+# Install Helm if it's missing
+if ! command -v helm >/dev/null; then
+  echo "Installing Helm ${helm_version}" >&2
+  tmp_h=$(mktemp -d)
+  curl -fsSL "https://get.helm.sh/helm-${helm_version}-linux-amd64.tar.gz" -o "$tmp_h/helm.tar.gz"
+  tar -xzf "$tmp_h/helm.tar.gz" -C "$tmp_h"
+  install -m 0755 "$tmp_h/linux-amd64/helm" /usr/local/bin/helm
+  rm -rf "$tmp_h"
+fi
 
 # Temporary directory used for apt downloads to avoid permission issues with
 # the _apt sandbox user. Files are moved to $offline_pkg_dir afterwards.
