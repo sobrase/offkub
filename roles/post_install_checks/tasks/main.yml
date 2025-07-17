@@ -34,7 +34,7 @@
 
 - name: Enable Calico eBPF
   shell: |
-    kubectl patch felixconfiguration.p default --type merge -p '{"spec": {"bpfEnabled": true, "bpfKubeProxyIptablesCleanupEnabled": false}}'
+    kubectl patch felixconfigurations default --type merge -p '{"spec": {"bpfEnabled": true, "bpfKubeProxyIptablesCleanupEnabled": false}}'
   environment: "{{ kubectl_env }}"
   become: true
 
