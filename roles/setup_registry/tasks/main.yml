@@ -147,7 +147,9 @@
 - name: Load and push NVIDIA device plugin image
   shell: |
     img=$(docker load -i /tmp/{{ nvidia_plugin_image }} | awk '/Loaded image:/ {print $3}')
-    name=$(echo "$img" | awk -F/ '{print $NF}')
+    # Preserve the repository path so the image is available as
+    # <registry_host>:<registry_port>/nvidia/k8s-device-plugin:<tag>
+    name=$(echo "$img" | cut -d/ -f2-)
     docker tag $img {{ registry_host }}:{{ registry_port }}/$name
     docker push {{ registry_host }}:{{ registry_port }}/$name
   args:
