@@ -77,8 +77,8 @@
   environment: "{{ kubectl_env }}"
   become: true
 
-- name: Wait for Traefik deployment rollout
-  shell: kubectl rollout status deployment/traefik -n traefik-system --timeout=120s
+- name: Wait for Traefik daemonset rollout
+  shell: kubectl rollout status daemonset/traefik -n traefik-system --timeout=120s
   register: traefik_rollout
   retries: 5
   delay: 30

@@ -45,8 +45,9 @@ apply.
 
 
 The `traefik_gateway` role deploys a Traefik Gateway controller and related
-Gateway API resources. All manifests use container images from the local
-registry so the gateway can be installed entirely offline.
+Gateway API resources. Traefik runs as a DaemonSet so every node exposes ports
+80 and 443. All manifests use container images from the local registry so the
+gateway can be installed entirely offline.
 
 The `sample_app` role provides a minimal Deployment, Service and HTTPRoute that
 use only local manifests and images. It allows quick end‑to‑end testing of the

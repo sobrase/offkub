@@ -1,11 +1,10 @@
 ---
 apiVersion: apps/v1
-kind: Deployment
+kind: DaemonSet
 metadata:
   name: traefik
   namespace: traefik-system
 spec:
-  replicas: 1
   selector:
     matchLabels:
       app: traefik
