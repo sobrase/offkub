@@ -37,17 +37,8 @@ available before applying the rest of the resources. This avoids failures that
 can occur when the API server has not yet processed the CRDs during the initial
 apply.
 
-## Inventory configuration
 
-Edit the `inventory` file to list all hosts that will participate in the
-cluster. Every address under the `[masters]` group becomes a control plane
-node. For multi‑master setups simply include all master IPs – the
-playbook initializes the first entry and has the remaining masters join the
-cluster automatically. Likewise ensure any worker nodes are listed under
-`[workers]`.
+The `traefik_gateway` role deploys a Traefik Gateway controller and related
+Gateway API resources. All manifests use container images from the local
+registry so the gateway can be installed entirely offline.
 
-After adjusting the inventory, run the playbook as usual:
-
-```bash
-ansible-playbook -i inventory site.yml
-```
