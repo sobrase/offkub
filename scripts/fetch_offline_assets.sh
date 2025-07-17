@@ -26,14 +26,14 @@ fi
 
 read -r offline_pkg_dir offline_image_dir kube_version kube_version_pkgs \
         registry_version containerd_version calico_version calico_image_version \
-        device_plugin_version traefik_version helm_version registry_host registry_port <<< "$(python3 - <<PY
+        device_plugin_version traefik_version whoami_version helm_version registry_host registry_port <<< "$(python3 - <<PY
 import yaml,sys
 with open('$VARS_FILE') as f:
     data = yaml.safe_load(f)
 fields = ['offline_pkg_dir','offline_image_dir','kube_version',
           'kube_version_pkgs','registry_version','containerd_version','calico_version',
           'calico_image_version','device_plugin_version','traefik_version',
-          'helm_version','registry_host','registry_port']
+          'whoami_version','helm_version','registry_host','registry_port']
 print(' '.join(str(data.get(k,'')) for k in fields))
 PY
 )"
@@ -179,6 +179,10 @@ done
 # Traefik image
 docker pull traefik:v${traefik_version}
 docker save traefik:v${traefik_version} -o "traefik_v${traefik_version}.tar"
+
+# Traefik whoami image used by the optional test route
+docker pull traefik/whoami:${whoami_version}
+docker save traefik/whoami:${whoami_version} -o "whoami_${whoami_version}.tar"
 
 # Python image for the sample application
 docker pull python:3.12-alpine
