@@ -11,8 +11,14 @@ spec:
     metadata:
       labels:
         app: cunofs-csi-node
-    spec:
-      containers:
-        - name: csi-node
-          image: {{ cunofs_node_image }}
-          args: []
+      spec:
+        containers:
+          - name: csi-node
+            image: {{ cunofs_node_image }}
+            env:
+              - name: NODE_NAME
+                valueFrom:
+                  fieldRef:
+                    fieldPath: spec.nodeName
+            args:
+              - "--node=$(NODE_NAME)"

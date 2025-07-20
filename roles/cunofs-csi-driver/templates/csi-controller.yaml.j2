@@ -12,8 +12,14 @@ spec:
     metadata:
       labels:
         app: cunofs-csi-controller
-    spec:
-      containers:
-        - name: csi-controller
-          image: {{ cunofs_controller_image }}
-          args: []
+      spec:
+        containers:
+          - name: csi-controller
+            image: {{ cunofs_controller_image }}
+            env:
+              - name: NODE_NAME
+                valueFrom:
+                  fieldRef:
+                    fieldPath: spec.nodeName
+            args:
+              - "--node=$(NODE_NAME)"
