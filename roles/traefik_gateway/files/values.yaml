@@ -17,3 +17,6 @@ image:
 updateStrategy:
   rollingUpdate:
     maxUnavailable: 1
+ingressRoute:
+  dashboard:
+    enabled: false

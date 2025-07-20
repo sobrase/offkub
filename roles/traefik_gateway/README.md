@@ -1,8 +1,9 @@
 # traefik_gateway role
 
 This role deploys Traefik Gateway in an air‑gapped Kubernetes cluster using a Helm chart rendered to YAML.
-The `fetch_offline_assets.sh` helper downloads the chart and generates `traefik.yaml` with `helm template` so Helm is not required on the target hosts.
-The role applies the Gateway API CRDs and then the rendered manifest which includes RBAC rules, the controller and the default `GatewayClass` and `Gateway` objects.
+The `fetch_offline_assets.sh` helper downloads the chart and generates `traefik.yaml` with `helm template` so Helm is not required on the target hosts.  The template command now includes CRDs to avoid additional downloads when deploying.
+The role applies the Gateway API CRDs and then the rendered manifest which includes RBAC rules, the controller and the default `GatewayClass` and `Gateway` objects. The dashboard IngressRoute is disabled to keep the deployment minimal.
+`fetch_offline_assets.sh` also strips the `maxSurge` field from the DaemonSet update strategy because Kubernetes forbids setting `maxSurge` when `maxUnavailable` is non-zero.
 
 ## Files
 - `standard-install.yaml` – Gateway API CRDs

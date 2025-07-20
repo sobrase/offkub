@@ -97,9 +97,8 @@ spec:
     matchLabels:
       app.kubernetes.io/name: traefik
       app.kubernetes.io/instance: traefik-traefik
-  updateStrategy: 
+  updateStrategy:
     rollingUpdate:
-      maxSurge: 1
       maxUnavailable: 1
     type: RollingUpdate
   minReadySeconds: 0
@@ -215,25 +214,3 @@ metadata:
   name: traefik
 spec:
   controller: traefik.io/ingress-controller
----
-# Source: traefik/templates/dashboard-ingressroute.yaml
-apiVersion: traefik.io/v1alpha1
-kind: IngressRoute
-metadata:
-  name: traefik-dashboard
-  namespace: traefik
-  annotations:
-  labels:
-    app.kubernetes.io/name: traefik
-    app.kubernetes.io/instance: traefik-traefik
-    helm.sh/chart: traefik-26.0.0
-    app.kubernetes.io/managed-by: Helm
-spec:
-  entryPoints:
-  - traefik
-  routes:
-  - match: PathPrefix(`/dashboard`) || PathPrefix(`/api`)
-    kind: Rule
-    services:
-    - name: api@internal
-      kind: TraefikService
