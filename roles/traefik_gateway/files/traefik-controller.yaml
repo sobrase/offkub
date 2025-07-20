@@ -18,7 +18,7 @@ spec:
       serviceAccountName: traefik-controller
       containers:
         - name: traefik
-          image: registrii.local:5000/traefik:v2.11.7
+          image: registrii.local:5000/traefik:v2.10.7
           args:
             - --providers.kubernetesgateway=true
             - --providers.kubernetesgateway
