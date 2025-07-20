@@ -287,6 +287,9 @@ image:
   registry: ${registry_host}:${registry_port}
   repository: traefik
   tag: v${traefik_version}
+updateStrategy:
+  rollingUpdate:
+    maxUnavailable: 1
 EOF
 
 tmp_chart=$(mktemp -d)
