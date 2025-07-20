@@ -23,6 +23,8 @@ spec:
             - --providers.kubernetesgateway=true
             - --entrypoints.web.address=:80
             - --entrypoints.websecure.address=:443
+            - --log.level=info
+            - --accesslog
           ports:
             - name: web
               containerPort: 80

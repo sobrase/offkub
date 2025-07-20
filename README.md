@@ -88,3 +88,42 @@ After Traefik is set up, the playbook automatically runs the
 extracted Helm chart. This step requires no internet access and completes the
 offline Kubernetes installation.
 
+## Troubleshooting 404 errors when testing Traefik
+If navigating to `http://<NODE_IP>` returns a 404 page after running the playbook,
+Traefik is reachable but no `HTTPRoute` matched the request. Verify that the
+`traefik-gateway` resource exists and that the sample route is accepted:
+
+```bash
+kubectl get gateways,httproutes -A
+kubectl describe gateway traefik-gateway -n default
+kubectl describe httproute echo-app -n default
+```
+
+The route status should list `Accepted=True` and reference the gateway under
+`Parents`. If the route is not accepted, inspect the controller logs:
+
+```bash
+kubectl logs -n traefik-system daemonset/traefik
+```
+If this command prints no output, the controller may be running with a higher
+log level that hides informational messages. The provided manifest starts
+Traefik with `--log.level=info` and `--accesslog` so startup events are
+visible even without traffic. Reapply the controller manifest if you updated
+an earlier version.
+
+If `kubectl describe gateway traefik-gateway -n default` shows `Waiting for controller`
+or `Reason: Pending`, the Gateway has not been reconciled yet. Confirm that the
+Traefik controller is running and the `traefik` GatewayClass exists:
+
+```bash
+kubectl get gatewayclasses
+kubectl get pods -n traefik-system
+```
+
+A healthy daemonset and `Accepted=True` GatewayClass mean the controller is ready
+to program the Gateway and associated routes.
+
+A missing GatewayClass or incorrect `parentRefs` will prevent Traefik from using
+the route. Once the route is accepted, the sample page should load from any
+node's IP address.
+
