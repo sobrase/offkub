@@ -300,8 +300,12 @@ chart_path="$tmp_chart/traefik"
 helm template traefik "$chart_path" \
   --namespace traefik \
   --create-namespace \
+  --include-crds \
   -f "$gateway_files_dir/values.yaml" \
   > "$gateway_files_dir/traefik.yaml"
+
+# Remove maxSurge which is invalid for DaemonSet updateStrategy
+sed -i '/maxSurge:/d' "$gateway_files_dir/traefik.yaml"
 rm -rf "$tmp_chart"
 # Cleanup temporary download directory
 rm -rf "$download_tmp"
