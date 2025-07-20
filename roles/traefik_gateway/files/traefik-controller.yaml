@@ -21,6 +21,7 @@ spec:
           image: registrii.local:5000/traefik:v2.11.7
           args:
             - --providers.kubernetesgateway=true
+            - --providers.kubernetesgateway
             - --entrypoints.web.address=:80
             - --entrypoints.websecure.address=:443
             - --log.level=info
