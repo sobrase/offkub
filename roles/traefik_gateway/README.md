@@ -1,22 +1,18 @@
 # traefik_gateway role
 
-This role deploys Traefik Gateway in an air‑gapped Kubernetes cluster using manifests stored under `files/`.
-It applies the Gateway API CRDs, RBAC rules, controller DaemonSet, `GatewayClass` and `Gateway` objects.
-
-Air‑gapped support is achieved by referencing images from the local registry and copying all manifests to the node before applying them with `kubectl`.
+This role deploys Traefik Gateway in an air‑gapped Kubernetes cluster using a Helm chart rendered to YAML.
+The `fetch_offline_assets.sh` helper downloads the chart and generates `traefik.yaml` with `helm template` so Helm is not required on the target hosts.
+The role applies the Gateway API CRDs and then the rendered manifest which includes RBAC rules, the controller and the default `GatewayClass` and `Gateway` objects.
 
 ## Files
 - `standard-install.yaml` – Gateway API CRDs
-- `traefik-controller.yaml` – Traefik DaemonSet using `hostNetwork` so that
-  every node listens directly on ports 80 and 443
-- `rbac.yaml` – permissions for the controller
-- `gatewayclass.yaml` – default `GatewayClass`
-- `gateway.yaml` – default `Gateway` with HTTP and HTTPS listeners
+- `traefik.yaml` – manifest rendered from the Helm chart
+- `values.yaml` – values used during templating
 - `whoami.yaml` – optional dummy backend service
 - `test-route.yaml` – optional `HTTPRoute` mapping to the whoami service
 
 ## Customization
-Edit `gatewayclass.yaml` or `gateway.yaml` to adjust the controller name, listeners or TLS settings. These files are static and can be replaced with your own versions if different configuration is required.
+Adjust `values.yaml` if you need different settings before rendering the chart with `scripts/fetch_offline_assets.sh`.
 
 Set `deploy_test_route: true` to automatically deploy the `whoami` service and
 associated `HTTPRoute` after the controller is running. The
