@@ -26,14 +26,14 @@ fi
 
 read -r offline_pkg_dir offline_image_dir kube_version kube_version_pkgs \
         registry_version containerd_version calico_version calico_image_version \
-        device_plugin_version traefik_version whoami_version helm_version registry_host registry_port <<< "$(python3 - <<PY
+        device_plugin_version traefik_version whoami_version traefik_chart_version helm_version registry_host registry_port <<< "$(python3 - <<PY
 import yaml,sys
 with open('$VARS_FILE') as f:
     data = yaml.safe_load(f)
 fields = ['offline_pkg_dir','offline_image_dir','kube_version',
           'kube_version_pkgs','registry_version','containerd_version','calico_version',
           'calico_image_version','device_plugin_version','traefik_version',
-          'whoami_version','helm_version','registry_host','registry_port']
+          'whoami_version','traefik_chart_version','helm_version','registry_host','registry_port']
 print(' '.join(str(data.get(k,'')) for k in fields))
 PY
 )"
@@ -269,107 +269,37 @@ curl -L -o "$gateway_files_dir/standard-install.yaml" \
 curl -L -o "$gateway_files_dir/experimental-install.yaml" \
   "https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.2.1/experimental-install.yaml"
 
-# Traefik Gateway controller manifest
-cat > "$gateway_files_dir/traefik-controller.yaml" <<EOF
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: traefik
----
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: traefik-controller
-  namespace: traefik
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: traefik
-  namespace: traefik
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: traefik-lb
-  template:
-    metadata:
-      labels:
-        app: traefik-lb
-    spec:
-      serviceAccountName: traefik-controller
-      containers:
-        - name: traefik
-          image: ${registry_host}:${registry_port}/traefik:v${traefik_version}
-          args:
-            - --entryPoints.web.address=:80
-            - --entryPoints.websecure.address=:443
-            - --experimental.kubernetesgateway
-            - --providers.kubernetesgateway
-          ports:
-            - name: web
-              containerPort: 80
-            - name: websecure
-              containerPort: 443
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: traefik
-  namespace: traefik
-spec:
-  type: LoadBalancer
-  selector:
-    app: traefik-lb
-  ports:
-    - protocol: TCP
-      port: 80
-      targetPort: web
-      name: web
-    - protocol: TCP
-      port: 443
-      targetPort: websecure
-# Last line of controller manifest
-      name: websecure
+# Render Traefik chart using helm template
+cat > "$gateway_files_dir/values.yaml" <<EOF
+providers:
+  kubernetesIngress:
+    enabled: false
+  kubernetesGateway:
+    enabled: true
+gateway:
+  namespacePolicy: All
+deployment:
+  kind: DaemonSet
+hostNetwork: true
+service:
+  enabled: false
+image:
+  registry: ${registry_host}:${registry_port}
+  repository: traefik
+  tag: v${traefik_version}
 EOF
 
-# GatewayClass and Gateway definitions
-cat > "$gateway_files_dir/gatewayclass.yaml" <<EOF
-apiVersion: gateway.networking.k8s.io/v1
-kind: GatewayClass
-metadata:
-  name: traefik-gw-class
-spec:
-  controllerName: traefik.io/gateway-controller
-EOF
-
-cat > "$gateway_files_dir/gateway.yaml" <<EOF
-apiVersion: gateway.networking.k8s.io/v1
-kind: Gateway
-metadata:
-  name: traefik-gateway
-  namespace: traefik
-spec:
-  gatewayClassName: traefik-gw-class
-  listeners:
-  - name: http
-    protocol: HTTP
-    port: 80
-    allowedRoutes:
-      namespaces:
-        from: All
-  - name: https
-    protocol: HTTPS
-    port: 443
-    tls:
-      mode: Terminate
-      certificateRefs:
-        - kind: Secret
-          name: traefik-cert
-    allowedRoutes:
-      namespaces:
-        from: All
-EOF
+tmp_chart=$(mktemp -d)
+helm repo add traefik https://traefik.github.io/charts >/dev/null
+helm repo update >/dev/null
+helm pull traefik/traefik --version ${traefik_chart_version} -d "$tmp_chart" --untar
+chart_path="$tmp_chart/traefik"
+helm template traefik "$chart_path" \
+  --namespace traefik \
+  --create-namespace \
+  -f "$gateway_files_dir/values.yaml" \
+  > "$gateway_files_dir/traefik.yaml"
+rm -rf "$tmp_chart"
 # Cleanup temporary download directory
 rm -rf "$download_tmp"
 

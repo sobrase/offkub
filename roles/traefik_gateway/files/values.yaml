@@ -1,0 +1,19 @@
+providers:
+  kubernetesIngress:
+    enabled: false
+  kubernetesGateway:
+    enabled: true
+gateway:
+  namespacePolicy: All
+deployment:
+  kind: DaemonSet
+hostNetwork: true
+service:
+  enabled: false
+image:
+  registry: registrii.local:5000
+  repository: traefik
+  tag: v2.10.7
+updateStrategy:
+  rollingUpdate:
+    maxUnavailable: 1
