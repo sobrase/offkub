@@ -26,14 +26,14 @@ fi
 
 read -r offline_pkg_dir offline_image_dir kube_version kube_version_pkgs \
         registry_version containerd_version calico_version calico_image_version \
-        device_plugin_version traefik_version whoami_version traefik_chart_version helm_version registry_host registry_port <<< "$(python3 - <<PY
+        device_plugin_version traefik_version whoami_version traefik_chart_version traefik_crds_chart_version helm_version registry_host registry_port <<< "$(python3 - <<PY
 import yaml,sys
 with open('$VARS_FILE') as f:
     data = yaml.safe_load(f)
 fields = ['offline_pkg_dir','offline_image_dir','kube_version',
           'kube_version_pkgs','registry_version','containerd_version','calico_version',
           'calico_image_version','device_plugin_version','traefik_version',
-          'whoami_version','traefik_chart_version','helm_version','registry_host','registry_port']
+          'whoami_version','traefik_chart_version','traefik_crds_chart_version','helm_version','registry_host','registry_port']
 print(' '.join(str(data.get(k,'')) for k in fields))
 PY
 )"
@@ -296,17 +296,22 @@ tmp_chart=$(mktemp -d)
 helm repo add traefik https://traefik.github.io/charts >/dev/null
 helm repo update >/dev/null
 helm pull traefik/traefik --version ${traefik_chart_version} -d "$tmp_chart" --untar
+tmp_chart_crds=$(mktemp -d)
+helm pull traefik/traefik-crds --version ${traefik_crds_chart_version} -d "$tmp_chart_crds" --untar
 chart_path="$tmp_chart/traefik"
 helm template traefik "$chart_path" \
   --namespace traefik \
   --create-namespace \
-  --include-crds \
   -f "$gateway_files_dir/values.yaml" \
   > "$gateway_files_dir/traefik.yaml"
 
+# Concatenate Traefik CRDs into a single file
+crds_dir="$tmp_chart_crds/traefik-crds/crds-files/traefik"
+awk 'FNR==1 && NR>1{print "---"} {print}' "$crds_dir"/*.yaml > "$gateway_files_dir/traefik-crds.yaml"
+
 # Remove maxSurge which is invalid for DaemonSet updateStrategy
 sed -i '/maxSurge:/d' "$gateway_files_dir/traefik.yaml"
-rm -rf "$tmp_chart"
+rm -rf "$tmp_chart" "$tmp_chart_crds"
 # Cleanup temporary download directory
 rm -rf "$download_tmp"
 
