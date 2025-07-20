@@ -18,6 +18,18 @@
   environment: "{{ kubectl_env }}"
   become: true
 
+- name: Copy Traefik CRDs
+  copy:
+    src: traefik-crds.yaml
+    dest: /tmp/traefik-crds.yaml
+    mode: '0644'
+  become: true
+
+- name: Apply Traefik CRDs
+  shell: kubectl apply -f /tmp/traefik-crds.yaml
+  environment: "{{ kubectl_env }}"
+  become: true
+
 - name: Ensure traefik namespace exists
   shell: |
     cat <<EOF2 | kubectl apply -f -
