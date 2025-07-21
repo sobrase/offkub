@@ -204,18 +204,16 @@ spec:
           containerPort: 8080
           protocol: TCP
         - name: web
-          containerPort: 80
+          containerPort: 8000
           protocol: TCP
         - name: websecure
-          containerPort: 443
+          containerPort: 8443
           protocol: TCP
         securityContext:
           allowPrivilegeEscalation: false
           capabilities:
             drop:
-              - ALL
-            add:
-              - NET_BIND_SERVICE
+            - ALL
           readOnlyRootFilesystem: true
         volumeMounts:
           - name: data
@@ -226,8 +224,8 @@ spec:
           - "--global.checkNewVersion"
           - "--entryPoints.metrics.address=:9100/tcp"
           - "--entryPoints.traefik.address=:8080/tcp"
-          - "--entryPoints.web.address=:80/tcp"
-          - "--entryPoints.websecure.address=:443/tcp"
+          - "--entryPoints.web.address=:8000/tcp"
+          - "--entryPoints.websecure.address=:8443/tcp"
           - "--api.dashboard=true"
           - "--ping=true"
           - "--metrics.prometheus=true"
@@ -286,18 +284,9 @@ metadata:
 spec:
   gatewayClassName: traefik
   listeners:
-    - name: http
+    - name: web
+      port: 8000
       protocol: HTTP
-      port: 80
-      allowedRoutes:
-        namespaces:
-          from: All
-    - name: https
-      protocol: HTTPS
-      port: 443
-      allowedRoutes:
-        namespaces:
-          from: All
 ---
 # Source: traefik/templates/gatewayclass.yaml
 apiVersion: gateway.networking.k8s.io/v1
