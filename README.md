@@ -123,6 +123,10 @@ kubectl get pods -n traefik-system
 
 A healthy daemonset and `Accepted=True` GatewayClass mean the controller is ready
 to program the Gateway and associated routes.
+Once reconciled, `kubectl describe gateway traefik-gateway -n default` lists the assigned `Address`.
+If the controller logs contain RBAC errors such as `configmaps is forbidden` or
+`endpointslices.discovery.k8s.io is forbidden`, edit the Traefik ClusterRole to
+allow listing these resources.
 
 A missing GatewayClass or incorrect `parentRefs` will prevent Traefik from using
 the route. Once the route is accepted, the sample page should load from any

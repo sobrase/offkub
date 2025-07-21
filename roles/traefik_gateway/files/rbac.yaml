@@ -10,7 +10,7 @@ metadata:
   name: traefik-controller
 rules:
   - apiGroups: ['']
-    resources: ['services', 'endpoints', 'secrets']
+    resources: ['services', 'endpoints', 'secrets', 'configmaps']
     verbs: ['get', 'list', 'watch']
   - apiGroups: ['discovery.k8s.io']
     resources: ['endpointslices']
