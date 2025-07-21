@@ -119,7 +119,7 @@ spec:
       terminationGracePeriodSeconds: 60
       hostNetwork: true
       containers:
-      - image: registrii.local:5000/traefik:v2.10.7
+      - image: registrii.local:5000/traefik:v3.4.1
         imagePullPolicy: IfNotPresent
         name: traefik
         resources:
@@ -181,7 +181,8 @@ spec:
           - "--ping=true"
           - "--metrics.prometheus=true"
           - "--metrics.prometheus.entrypoint=metrics"
-          - "--providers.kubernetescrd"
+          - "--providers.kubernetesgateway=true"
+          - "--providers.kubernetesgateway"
           - "--entrypoints.websecure.http.tls=true"
           - "--log.level=debug"
         env:

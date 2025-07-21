@@ -20,7 +20,7 @@ service:
 image:
   registry: registrii.local:5000
   repository: traefik
-  tag: v2.10.7
+  tag: v3.4.1
 updateStrategy:
   rollingUpdate:
     maxUnavailable: 1
