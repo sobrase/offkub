@@ -5,6 +5,13 @@ providers:
     enabled: true
 gateway:
   namespacePolicy: All
+ports:
+  web:
+    port: :80
+  websecure:
+    port: :443
+    tls:
+      enabled: true
 deployment:
   kind: DaemonSet
 hostNetwork: true
@@ -22,12 +29,4 @@ ingressRoute:
     enabled: false
 additionalArguments:
   - "--log.level=debug"
-ports:
-  web:
-    port: 80
-    expose: false        # no Service needed; we’re on hostNet
-  websecure:
-    port: 443
-    expose: false
-    tls:
-      enabled: true
+
