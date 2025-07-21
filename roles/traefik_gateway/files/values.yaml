@@ -21,8 +21,6 @@ ingressRoute:
   dashboard:
     enabled: false
 additionalArguments:
-  - "--entrypoints.web.address=:80"
-  - "--entrypoints.websecure.address=:443"
   - "--log.level=debug"
 ports:
   web:
