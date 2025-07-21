@@ -23,7 +23,8 @@ image:
   tag: v3.4.1
 updateStrategy:
   rollingUpdate:
-    maxUnavailable: 1
+    maxUnavailable: 2
+    maxSurge: 2
 ingressRoute:
   dashboard:
     enabled: false
