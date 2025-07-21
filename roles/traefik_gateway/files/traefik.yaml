@@ -99,8 +99,8 @@ spec:
       app.kubernetes.io/instance: traefik-traefik
   updateStrategy: 
     rollingUpdate:
-      maxSurge: 1
-      maxUnavailable: 1
+      maxSurge: 0
+      maxUnavailable: 2
     type: RollingUpdate
   minReadySeconds: 0
   template: 
