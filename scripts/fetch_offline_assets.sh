@@ -311,6 +311,8 @@ awk 'FNR==1 && NR>1{print "---"} {print}' "$crds_dir"/*.yaml > "$gateway_files_d
 
 # Remove maxSurge which is invalid for DaemonSet updateStrategy
 sed -i '/maxSurge:/d' "$gateway_files_dir/traefik.yaml"
+# Grant capability to bind privileged ports
+sed -i '/drop:/a\            add:\n            - NET_BIND_SERVICE' "$gateway_files_dir/traefik.yaml"
 rm -rf "$tmp_chart" "$tmp_chart_crds"
 # Cleanup temporary download directory
 rm -rf "$download_tmp"
