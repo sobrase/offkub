@@ -48,7 +48,7 @@ registry_host: "registrii.local"
 registry_port: 5000
 
 # Simple HTTP server settings used to distribute offline assets
-asset_server_port: 8080
+asset_server_port: 8081
 asset_server_host: "{{ registry_host }}"
 
 # NVIDIA GPU configuration
