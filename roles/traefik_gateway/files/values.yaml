@@ -20,3 +20,16 @@ updateStrategy:
 ingressRoute:
   dashboard:
     enabled: false
+additionalArguments:
+  - "--entrypoints.web.address=:80"
+  - "--entrypoints.websecure.address=:443"
+  - "--log.level=debug"
+ports:
+  web:
+    port: 80
+    expose: false        # no Service needed; we’re on hostNet
+  websecure:
+    port: 443
+    expose: false
+    tls:
+      enabled: true
