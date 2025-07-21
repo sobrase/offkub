@@ -19,7 +19,7 @@ def main():
         help="Root directory containing 'pkgs' and 'images' subdirectories",
     )
     parser.add_argument(
-        "-p", "--port", type=int, default=8080, help="Port to listen on"
+        "-p", "--port", type=int, default=8081, help="Port to listen on"
     )
     args = parser.parse_args()
 
