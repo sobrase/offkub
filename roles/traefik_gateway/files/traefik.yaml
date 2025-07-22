@@ -152,7 +152,7 @@ spec:
   updateStrategy:
     type: RollingUpdate
     rollingUpdate:
-      maxUnavailable: 2
+      maxUnavailable: 1
       maxSurge: 0
   minReadySeconds: 0
   template:
@@ -205,10 +205,10 @@ spec:
           containerPort: 8080
           protocol: TCP
         - name: web
-          containerPort: 8000
+          containerPort: 80
           protocol: TCP
         - name: websecure
-          containerPort: 8443
+          containerPort: 443
           protocol: TCP
         securityContext:
           allowPrivilegeEscalation: false
@@ -230,8 +230,8 @@ spec:
           - "--global.checkNewVersion"
           - "--entryPoints.metrics.address=:9100/tcp"
           - "--entryPoints.traefik.address=:8080/tcp"
-          - "--entryPoints.web.address=:8000/tcp"
-          - "--entryPoints.websecure.address=:8443/tcp"
+          - "--entryPoints.web.address=:80/tcp"
+          - "--entryPoints.websecure.address=:443/tcp"
           - "--api.dashboard=true"
           - "--ping=true"
           - "--metrics.prometheus=true"
@@ -240,9 +240,11 @@ spec:
           - "--providers.kubernetescrd.allowEmptyServices=true"
           - "--providers.kubernetesgateway"
           - "--entryPoints.websecure.http.tls=true"
-          - "--log.level=INFO"
+          - "--log.level=DEBUG"
+          - "--accesslog=true"
+          - "--accesslog.fields.defaultmode=keep"
+          - "--accesslog.fields.headers.defaultmode=drop"
 
-          - "--log.level=debug"
         env:
           - name: POD_NAME
             valueFrom:
@@ -292,16 +294,11 @@ spec:
   gatewayClassName: traefik
   listeners:
     - name: web
-      port: 8000
+      port: 80
       protocol: HTTP
-    - name: websecure
-      port: 8443
-      protocol: HTTPS
-      tls:
-        certificateRefs:
-          - name: traefik-cert
-            kind: Secret
-            group: ""
+      allowedRoutes:
+        namespaces:
+          from: All
 ---
 # Source: traefik/templates/gatewayclass.yaml
 apiVersion: gateway.networking.k8s.io/v1
