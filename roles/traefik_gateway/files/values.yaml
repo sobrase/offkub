@@ -16,13 +16,31 @@ image:
   tag: v3.4.1
 updateStrategy:
   rollingUpdate:
-    maxUnavailable: 2
+    maxUnavailable: 1
     maxSurge: 0
-ingressRoute:
-  dashboard:
-    enabled: false
-additionalArguments:
-  - "--log.level=debug"
+logs:
+  general:
+    level: "DEBUG"
+  access:
+    enabled: true
+
+gateway:
+  listeners:
+    web:
+      namespacePolicy: "All"
+      port: 80
+      protocol: HTTP
+        #websecure:
+        #port: 443
+        #protocol: HTTPS
+        #certificateRefs: traefik-cert
+ports:
+  web:
+    port: 80
+  websecure:
+    port: 443
+
+
 securityContext:
   capabilities:
     drop: [ALL]
