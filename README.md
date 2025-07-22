@@ -50,7 +50,9 @@ The `traefik_gateway` role deploys a Traefik Gateway controller and related
 Gateway API resources using a manifest rendered from the official Helm chart.
 Traefik runs as a DaemonSet so every node exposes ports 80 and 443. The
 rendered manifest references container images in the local registry so the
-gateway can be installed entirely offline.
+gateway can be installed entirely offline. During deployment the role creates a
+self-signed certificate and stores it in a `traefik-cert` Secret so the HTTPS
+listener is enabled without external dependencies.
 
 The `sample_app` role provides a minimal Deployment, Service and HTTPRoute that
 use only local manifests and images. It allows quick end‑to‑end testing of the
