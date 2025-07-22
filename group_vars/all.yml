@@ -69,6 +69,6 @@ registry_master_ip: "10.0.1.103"                  # Override master IP for regis
 control_plane_endpoint: "{{ registry_master_ip }}:6443"
 
 # cunoFS license key
-cunofs_license_key: ""
+cunofs_license_key: "SmVhbiBEdWphcmRpbgpzMGJyYXNlQGdtYWlsLmNvbQpwZXJzb25hbAoxNzUzMTQyNDAwCjQwNzA5MDg4MDAKMWI2YTM5ZDctMTljYy00NGU0LWFkOTItZmNkODA4ZmZlNDlkCjAKakU4L0ZyS1Z4ZE00UkdDQWlQTUdwdG44M3JHd09jcnVmQmhOOXhLbXJxQSt4anZRYTFtUzcxWlVCK2MxSitlM2h4WEs0ajMwZjkrd1NUdTNJcFN1R2lYNFN5YjVHMUQvMllUeUJRdzk2L0pZcDc2ekZYS0pCbU43UlBuUzVoV2FBS0t4SEZwWktJZm1Lc2hWTytHdnNQOUNpWDdoUVg2dTBUMmtvRFdVam93aWRGeFJGbUl5VGp3d0l6eEluaThkN0hqQzlzeWJzQVhieU4xTXhRcC9Lc0ZXRzl5R2lhQmZFSGxISlNBcTdjTTM4NEgyOUVBZXBJRUFSSFRTSHFvVWRmaDdrRUc5dm8xUysxVWlmNUNsbVBsZEJWMDF4a0I0TG5DcktwcVJRbFU0Y3RKcHpqS3Rjc2k2eittMGk2WHgwYXRUWXIweC9mc0ExaTM5VldRTTV3PT0K"
 cunofs_namespace: "cunofs-system"
 cunofs_version: "1.0.4"
