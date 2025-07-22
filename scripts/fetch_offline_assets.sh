@@ -16,7 +16,7 @@ ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 VARS_FILE="$ROOT_DIR/group_vars/all.yml"
 
 # Ensure PyYAML is available for parsing YAML
-if ! python3 - <<'PY'
+if ! python3 - <<'PY' 2>/dev/null
 import yaml
 PY
 then
@@ -24,40 +24,61 @@ then
   pip3 install --user PyYAML >/dev/null
 fi
 
+# Ensure Jinja2 is available for templating variables inside the YAML file
+if ! python3 - <<'PY' 2>/dev/null
+import jinja2
+PY
+then
+  echo "Installing Jinja2 for templating" >&2
+  pip3 install --user Jinja2 >/dev/null
+fi
+
 read -r offline_pkg_dir offline_image_dir kube_version kube_version_pkgs \
         registry_version containerd_version calico_version calico_image_version \
-        device_plugin_version traefik_version whoami_version traefik_chart_version traefik_crds_chart_version helm_version registry_host registry_port nvidia_driver_runfile <<< "$(python3 - <<PY
-import yaml,sys
-with open('$VARS_FILE') as f:
-    data = yaml.safe_load(f)
-fields = ['offline_pkg_dir','offline_image_dir','kube_version',
-          'kube_version_pkgs','registry_version','containerd_version','calico_version',
-          'calico_image_version','device_plugin_version','traefik_version',
-          'whoami_version','traefik_chart_version','traefik_crds_chart_version','helm_version','registry_host','registry_port','nvidia_driver_runfile']
+        device_plugin_version traefik_version whoami_version traefik_chart_version traefik_crds_chart_version helm_version registry_host registry_port nvidia_driver_runfile <<< "$(python3 - <<'PY'
+import yaml
+from jinja2 import Template
+text=open('$VARS_FILE').read()
+data=yaml.safe_load(text)
+rendered=Template(text).render(**data)
+data=yaml.safe_load(rendered)
+fields=['offline_pkg_dir','offline_image_dir','kube_version','kube_version_pkgs',
+        'registry_version','containerd_version','calico_version','calico_image_version',
+        'device_plugin_version','traefik_version','whoami_version','traefik_chart_version',
+        'traefik_crds_chart_version','helm_version','registry_host','registry_port','nvidia_driver_runfile']
 print(' '.join(str(data.get(k,'')) for k in fields))
 PY
 )"
 
-kubernetes_packages=( $(python3 - <<PY
+kubernetes_packages=( $(python3 - <<'PY'
 import yaml
-with open('$VARS_FILE') as f:
-    data = yaml.safe_load(f)
+from jinja2 import Template
+text=open('$VARS_FILE').read()
+data=yaml.safe_load(text)
+rendered=Template(text).render(**data)
+data=yaml.safe_load(rendered)
 print(' '.join(data.get('kubernetes_packages', [])))
 PY
 ) )
 
-registry_packages=( $(python3 - <<PY
+registry_packages=( $(python3 - <<'PY'
 import yaml
-with open('$VARS_FILE') as f:
-    data = yaml.safe_load(f)
+from jinja2 import Template
+text=open('$VARS_FILE').read()
+data=yaml.safe_load(text)
+rendered=Template(text).render(**data)
+data=yaml.safe_load(rendered)
 print(' '.join(data.get('registry_docker_packages', [])))
 PY
 ) )
 
-nvidia_packages=( $(python3 - <<PY
+nvidia_packages=( $(python3 - <<'PY'
 import yaml
-with open('$VARS_FILE') as f:
-    data = yaml.safe_load(f)
+from jinja2 import Template
+text=open('$VARS_FILE').read()
+data=yaml.safe_load(text)
+rendered=Template(text).render(**data)
+data=yaml.safe_load(rendered)
 print(' '.join(data.get('nvidia_packages', [])))
 PY
 ) )
