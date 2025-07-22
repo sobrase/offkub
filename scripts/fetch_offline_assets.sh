@@ -313,6 +313,23 @@ awk 'FNR==1 && NR>1{print "---"} {print}' "$crds_dir"/*.yaml > "$gateway_files_d
 sed -i '/maxSurge:/d' "$gateway_files_dir/traefik.yaml"
 # Grant capability to bind privileged ports
 sed -i '/drop:/a\            add:\n            - NET_BIND_SERVICE' "$gateway_files_dir/traefik.yaml"
+
+# Include RBAC permissions for listing nodes when Traefik runs as a DaemonSet
+awk '
+/resources:/ && /nodes/ { inserted=1 }
+/^- apiGroups:/ && $2 ~ /discovery.k8s.io/ && !inserted {
+  print "  - apiGroups:";
+  print "      - \"\"";
+  print "    resources:";
+  print "      - nodes";
+  print "    verbs:";
+  print "      - get";
+  print "      - list";
+  print "      - watch";
+  inserted=1
+}
+{ print }' "$gateway_files_dir/traefik.yaml" > "$gateway_files_dir/traefik.yaml.tmp"
+mv "$gateway_files_dir/traefik.yaml.tmp" "$gateway_files_dir/traefik.yaml"
 rm -rf "$tmp_chart" "$tmp_chart_crds"
 # Cleanup temporary download directory
 rm -rf "$download_tmp"
