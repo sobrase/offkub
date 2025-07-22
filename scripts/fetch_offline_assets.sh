@@ -36,6 +36,7 @@ fi
 read -r offline_pkg_dir offline_image_dir kube_version kube_version_pkgs \
         registry_version containerd_version calico_version calico_image_version \
         device_plugin_version traefik_version whoami_version traefik_chart_version traefik_crds_chart_version helm_version registry_host registry_port nvidia_driver_runfile <<< "$(python3 - <<PY
+
 import yaml
 from jinja2 import Template
 text=open('$VARS_FILE').read()
@@ -50,7 +51,7 @@ print(' '.join(str(data.get(k,'')) for k in fields))
 PY
 )"
 
-kubernetes_packages=( $(python3 - <<PY
+kubernetes_packages=( $(python3 - <<'PY'
 import yaml
 from jinja2 import Template
 text=open('$VARS_FILE').read()
@@ -61,7 +62,7 @@ print(' '.join(data.get('kubernetes_packages', [])))
 PY
 ) )
 
-registry_packages=( $(python3 - <<PY
+registry_packages=( $(python3 - <<'PY'
 import yaml
 from jinja2 import Template
 text=open('$VARS_FILE').read()
@@ -72,7 +73,8 @@ print(' '.join(data.get('registry_docker_packages', [])))
 PY
 ) )
 
- nvidia_packages=( $(python3 - <<PY
+nvidia_packages=( $(python3 - <<PY
+
 import yaml
 from jinja2 import Template
 text=open('$VARS_FILE').read()
