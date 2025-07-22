@@ -51,7 +51,7 @@ print(' '.join(str(data.get(k,'')) for k in fields))
 PY
 )"
 
-kubernetes_packages=( $(python3 - <<'PY'
+kubernetes_packages=( $(python3 - <<PY
 import yaml
 from jinja2 import Template
 text=open('$VARS_FILE').read()
@@ -62,7 +62,7 @@ print(' '.join(data.get('kubernetes_packages', [])))
 PY
 ) )
 
-registry_packages=( $(python3 - <<'PY'
+registry_packages=( $(python3 - <<PY
 import yaml
 from jinja2 import Template
 text=open('$VARS_FILE').read()
