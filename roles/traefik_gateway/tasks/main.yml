@@ -41,6 +41,18 @@
   environment: "{{ kubectl_env }}"
   become: true
 
+- name: Create self-signed certificate for Traefik
+  shell: |
+    if ! kubectl get secret traefik-cert -n traefik >/dev/null 2>&1; then
+      openssl req -x509 -nodes -newkey rsa:2048 -days 365 \
+        -keyout /tmp/traefik.key -out /tmp/traefik.crt \
+        -subj "/CN=traefik.local"
+      kubectl create secret tls traefik-cert \
+        --cert=/tmp/traefik.crt --key=/tmp/traefik.key -n traefik
+    fi
+  environment: "{{ kubectl_env }}"
+  become: true
+
 
 - name: Copy rendered Traefik manifest
   copy:
