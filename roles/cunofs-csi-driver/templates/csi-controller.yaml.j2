@@ -22,5 +22,10 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: spec.nodeName
+            - name: CUNOFS_LICENSE
+              valueFrom:
+                secretKeyRef:
+                  name: cunofs-license
+                  key: license
           args:
             - "--node=$(NODE_NAME)"
