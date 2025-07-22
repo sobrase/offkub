@@ -8,9 +8,10 @@ metadata:
   labels:
     app.kubernetes.io/name: traefik
     app.kubernetes.io/instance: traefik-traefik
-    helm.sh/chart: traefik-26.0.0
+    helm.sh/chart: traefik-36.3.0
     app.kubernetes.io/managed-by: Helm
   annotations:
+automountServiceAccountToken: false
 ---
 # Source: traefik/templates/rbac/clusterrole.yaml
 kind: ClusterRole
@@ -20,34 +21,15 @@ metadata:
   labels:
     app.kubernetes.io/name: traefik
     app.kubernetes.io/instance: traefik-traefik
-    helm.sh/chart: traefik-26.0.0
+    helm.sh/chart: traefik-36.3.0
     app.kubernetes.io/managed-by: Helm
 rules:
   - apiGroups:
-      - extensions
-      - networking.k8s.io
-    resources:
-      - ingressclasses
-      - ingresses
-    verbs:
-      - get
-      - list
-      - watch
-  - apiGroups:
       - ""
     resources:
-      - services
-      - endpoints
-      - secrets
       - configmaps
-    verbs:
-      - get
-      - list
-      - watch
-  - apiGroups:
-      - ""
-    resources:
       - nodes
+      - services
     verbs:
       - get
       - list
@@ -56,6 +38,22 @@ rules:
       - discovery.k8s.io
     resources:
       - endpointslices
+    verbs:
+      - list
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+      - secrets
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - extensions
+      - networking.k8s.io
+    resources:
+      - ingressclasses
     verbs:
       - get
       - list
@@ -68,15 +66,52 @@ rules:
       - ingressrouteudps
       - middlewares
       - middlewaretcps
+      - serverstransports
+      - serverstransporttcps
       - tlsoptions
       - tlsstores
       - traefikservices
-      - serverstransports
-      - serverstransporttcps
     verbs:
       - get
       - list
       - watch
+  - apiGroups:
+      - ""
+    resources:
+      - namespaces
+      - secrets
+      - configmaps
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - gateway.networking.k8s.io
+    resources:
+      - backendtlspolicies
+      - gatewayclasses
+      - gateways
+      - grpcroutes
+      - httproutes
+      - referencegrants
+      - tcproutes
+      - tlsroutes
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - gateway.networking.k8s.io
+    resources:
+      - backendtlspolicies/status
+      - gatewayclasses/status
+      - gateways/status
+      - grpcroutes/status
+      - httproutes/status
+      - tcproutes/status
+      - tlsroutes/status
+    verbs:
+      - update
 ---
 # Source: traefik/templates/rbac/clusterrolebinding.yaml
 kind: ClusterRoleBinding
@@ -86,7 +121,7 @@ metadata:
   labels:
     app.kubernetes.io/name: traefik
     app.kubernetes.io/instance: traefik-traefik
-    helm.sh/chart: traefik-26.0.0
+    helm.sh/chart: traefik-36.3.0
     app.kubernetes.io/managed-by: Helm
 roleRef:
   apiGroup: rbac.authorization.k8s.io
@@ -106,7 +141,7 @@ metadata:
   labels:
     app.kubernetes.io/name: traefik
     app.kubernetes.io/instance: traefik-traefik
-    helm.sh/chart: traefik-26.0.0
+    helm.sh/chart: traefik-36.3.0
     app.kubernetes.io/managed-by: Helm
   annotations:
 spec:
@@ -114,13 +149,13 @@ spec:
     matchLabels:
       app.kubernetes.io/name: traefik
       app.kubernetes.io/instance: traefik-traefik
-  updateStrategy: 
-    rollingUpdate:
-      maxSurge: 0
-      maxUnavailable: 2
+  updateStrategy:
     type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 2
+      maxSurge: 0
   minReadySeconds: 0
-  template: 
+  template:
     metadata:
       annotations:
         prometheus.io/scrape: "true"
@@ -129,10 +164,11 @@ spec:
       labels:
         app.kubernetes.io/name: traefik
         app.kubernetes.io/instance: traefik-traefik
-        helm.sh/chart: traefik-26.0.0
+        helm.sh/chart: traefik-36.3.0
         app.kubernetes.io/managed-by: Helm
     spec:
       serviceAccountName: traefik
+      automountServiceAccountToken: true
       terminationGracePeriodSeconds: 60
       hostNetwork: true
       containers:
@@ -143,7 +179,7 @@ spec:
         readinessProbe:
           httpGet:
             path: /ping
-            port: 9000
+            port: 8080
             scheme: HTTP
           failureThreshold: 1
           initialDelaySeconds: 2
@@ -153,7 +189,7 @@ spec:
         livenessProbe:
           httpGet:
             path: /ping
-            port: 9000
+            port: 8080
             scheme: HTTP
           failureThreshold: 3
           initialDelaySeconds: 2
@@ -162,18 +198,18 @@ spec:
           timeoutSeconds: 2
         lifecycle:
         ports:
-        - name: "metrics"
+        - name: metrics
           containerPort: 9100
-          protocol: "TCP"
-        - name: "traefik"
-          containerPort: 9000
-          protocol: "TCP"
-        - name: "web"
-          containerPort: 80
-          protocol: "TCP"
-        - name: "websecure"
-          containerPort: 443
-          protocol: "TCP"
+          protocol: TCP
+        - name: traefik
+          containerPort: 8080
+          protocol: TCP
+        - name: web
+          containerPort: 8000
+          protocol: TCP
+        - name: websecure
+          containerPort: 8443
+          protocol: TCP
         securityContext:
           allowPrivilegeEscalation: false
           capabilities:
@@ -191,18 +227,21 @@ spec:
           - name: tmp
             mountPath: /tmp
         args:
-          - "--global.checknewversion"
-          - "--global.sendanonymoususage"
-          - "--entrypoints.metrics.address=:9100/tcp"
-          - "--entrypoints.traefik.address=:9000/tcp"
-          - "--entrypoints.web.address=:80/tcp"
-          - "--entrypoints.websecure.address=:443/tcp"
+          - "--global.checkNewVersion"
+          - "--entryPoints.metrics.address=:9100/tcp"
+          - "--entryPoints.traefik.address=:8080/tcp"
+          - "--entryPoints.web.address=:8000/tcp"
+          - "--entryPoints.websecure.address=:8443/tcp"
           - "--api.dashboard=true"
           - "--ping=true"
           - "--metrics.prometheus=true"
           - "--metrics.prometheus.entrypoint=metrics"
           - "--providers.kubernetescrd"
-          - "--entrypoints.websecure.http.tls=true"
+          - "--providers.kubernetescrd.allowEmptyServices=true"
+          - "--providers.kubernetesgateway"
+          - "--entryPoints.websecure.http.tls=true"
+          - "--log.level=INFO"
+
           - "--log.level=debug"
         env:
           - name: POD_NAME
@@ -219,7 +258,6 @@ spec:
         - name: tmp
           emptyDir: {}
       securityContext:
-        fsGroupChangePolicy: OnRootMismatch
         runAsGroup: 65532
         runAsNonRoot: true
         runAsUser: 65532
@@ -233,8 +271,39 @@ metadata:
   labels:
     app.kubernetes.io/name: traefik
     app.kubernetes.io/instance: traefik-traefik
-    helm.sh/chart: traefik-26.0.0
+    helm.sh/chart: traefik-36.3.0
     app.kubernetes.io/managed-by: Helm
   name: traefik
 spec:
   controller: traefik.io/ingress-controller
+---
+# Source: traefik/templates/gateway.yaml
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: traefik-gateway
+  namespace: traefik
+  labels:
+    app.kubernetes.io/name: traefik
+    app.kubernetes.io/instance: traefik-traefik
+    helm.sh/chart: traefik-36.3.0
+    app.kubernetes.io/managed-by: Helm
+spec:
+  gatewayClassName: traefik
+  listeners:
+    - name: web
+      port: 8000
+      protocol: HTTP
+---
+# Source: traefik/templates/gatewayclass.yaml
+apiVersion: gateway.networking.k8s.io/v1
+kind: GatewayClass
+metadata:
+  name: traefik
+  labels:
+    app.kubernetes.io/name: traefik
+    app.kubernetes.io/instance: traefik-traefik
+    helm.sh/chart: traefik-36.3.0
+    app.kubernetes.io/managed-by: Helm
+spec:
+  controllerName: traefik.io/gateway-controller
