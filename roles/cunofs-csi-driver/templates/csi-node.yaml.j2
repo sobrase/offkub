@@ -16,6 +16,8 @@ spec:
       containers:
         - name: csi-node
           image: {{ cunofs_node_image }}
+          securityContext:
+            privileged: true
           env:
             - name: NODE_NAME
               valueFrom:
