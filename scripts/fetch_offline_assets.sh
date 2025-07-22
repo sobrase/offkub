@@ -26,14 +26,14 @@ fi
 
 read -r offline_pkg_dir offline_image_dir kube_version kube_version_pkgs \
         registry_version containerd_version calico_version calico_image_version \
-        device_plugin_version traefik_version whoami_version traefik_chart_version traefik_crds_chart_version helm_version registry_host registry_port <<< "$(python3 - <<PY
+        device_plugin_version traefik_version whoami_version traefik_chart_version traefik_crds_chart_version helm_version registry_host registry_port nvidia_driver_runfile <<< "$(python3 - <<PY
 import yaml,sys
 with open('$VARS_FILE') as f:
     data = yaml.safe_load(f)
 fields = ['offline_pkg_dir','offline_image_dir','kube_version',
           'kube_version_pkgs','registry_version','containerd_version','calico_version',
           'calico_image_version','device_plugin_version','traefik_version',
-          'whoami_version','traefik_chart_version','traefik_crds_chart_version','helm_version','registry_host','registry_port']
+          'whoami_version','traefik_chart_version','traefik_crds_chart_version','helm_version','registry_host','registry_port','nvidia_driver_runfile']
 print(' '.join(str(data.get(k,'')) for k in fields))
 PY
 )"
@@ -51,6 +51,14 @@ import yaml
 with open('$VARS_FILE') as f:
     data = yaml.safe_load(f)
 print(' '.join(data.get('registry_docker_packages', [])))
+PY
+) )
+
+nvidia_packages=( $(python3 - <<PY
+import yaml
+with open('$VARS_FILE') as f:
+    data = yaml.safe_load(f)
+print(' '.join(data.get('nvidia_packages', [])))
 PY
 ) )
 
@@ -146,6 +154,20 @@ for pkg in "${kubernetes_packages[@]}" "${registry_packages[@]}" "$containerd_pk
   fi
   fetch_deb "$pkg"
 done
+
+# Download NVIDIA container toolkit packages directly from the official repository
+for pkg in "${nvidia_packages[@]}"; do
+  url="https://raw.githubusercontent.com/NVIDIA/libnvidia-container/gh-pages/stable/deb/amd64/${pkg}"
+  echo "Fetching $pkg"
+  curl -L -o "$offline_pkg_dir/$pkg" "$url"
+done
+
+# Download NVIDIA driver runfile
+driver_version="${nvidia_driver_runfile#NVIDIA-Linux-x86_64-}"
+driver_version="${driver_version%.run}"
+curl -L \
+  -o "$offline_pkg_dir/$nvidia_driver_runfile" \
+  "https://download.nvidia.com/XFree86/Linux-x86_64/${driver_version}/${nvidia_driver_runfile}"
 
 cd "$offline_image_dir"
 
