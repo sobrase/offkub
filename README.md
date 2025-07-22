@@ -62,6 +62,11 @@ cluster once the gateway is running.
 used by the optional test route so the gateway can serve traffic without
 external access.
 
+`scripts/fetch_offline_assets.sh` also retrieves the NVIDIA GPU driver runfile
+specified by `nvidia_driver_runfile` and the `nvidia_packages`. These files are
+placed under `offline_pkg_dir` so the `install_gpu` role can install GPU
+support entirely from the local asset server.
+
 `scripts/fetch_offline_assets.sh` also downloads the cunoFS CSI Helm chart and
 its container images. The chart is extracted under
 `roles/cunofs-csi-driver/files/chart` and the tarred images are saved in
