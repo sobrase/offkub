@@ -5,13 +5,6 @@ providers:
     enabled: true
 gateway:
   namespacePolicy: All
-ports:
-  web:
-    port: 80
-  websecure:
-    port: 443
-    tls:
-      enabled: true
 deployment:
   kind: DaemonSet
 hostNetwork: true
@@ -24,7 +17,7 @@ image:
 updateStrategy:
   rollingUpdate:
     maxUnavailable: 2
-    maxSurge: 2
+    maxSurge: 0
 ingressRoute:
   dashboard:
     enabled: false
@@ -38,4 +31,3 @@ securityContext:
   runAsGroup: 0
   runAsNonRoot: false
   runAsUser: 0
-
