@@ -50,7 +50,6 @@
   run_once: true
   roles:
     - role: sample_app
-    - role: cunofs-csi-driver
 
 - hosts: masters
   become: yes

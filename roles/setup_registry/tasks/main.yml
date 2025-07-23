@@ -90,8 +90,6 @@
     traefik_image: "traefik_v{{ traefik_version }}.tar"
     python_image: "python_3.12-alpine.tar"
     whoami_image: "whoami_{{ whoami_version }}.tar"
-    cunofs_images:
-      - "cunofs-csi_{{ cunofs_version }}.tar"
 
 # Download Kubernetes core image tarballs
 - name: Download Kubernetes core images
@@ -214,27 +212,6 @@
     docker push {{ registry_host }}:{{ registry_port }}/$name
   args:
     executable: /bin/bash
-  become: yes
-
-# cunoFS CSI driver images
-- name: Download cunoFS images
-  get_url:
-    url: "http://{{ asset_server_host }}:{{ asset_server_port }}/images/{{ item }}"
-    dest: "/tmp/{{ item }}"
-    mode: '0644'
-    timeout: 60
-  loop: "{{ cunofs_images }}"
-  become: yes
-
-- name: Load and push cunoFS images
-  shell: |
-    img=$(docker load -i /tmp/{{ item }} | awk '/Loaded image:/ {print $3}')
-    name=$(echo "$img" | awk -F/ '{print $(NF-1) "/" $NF}')
-    docker tag $img {{ registry_host }}:{{ registry_port }}/$name
-    docker push {{ registry_host }}:{{ registry_port }}/$name
-  args:
-    executable: /bin/bash
-  loop: "{{ cunofs_images }}"
   become: yes
 
 # Optional verification that the registry is serving

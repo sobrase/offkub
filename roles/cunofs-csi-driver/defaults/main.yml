@@ -1,9 +1,0 @@
----
-# Default variables for cunofs-csi-driver role
-# Image tag is detected from the Helm chart when fetching assets
-# and stored in `cunofs_version`.
-cunofs_controller_image: "{{ registry_host }}:{{ registry_port }}/cunofs/cunofs-csi:{{ cunofs_version }}"
-cunofs_node_image: "{{ registry_host }}:{{ registry_port }}/cunofs/cunofs-csi:{{ cunofs_version }}"
-
-# Namespace to deploy the cunoFS CSI driver
-cunofs_namespace: "cunofs-system"
