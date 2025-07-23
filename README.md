@@ -67,34 +67,6 @@ specified by `nvidia_driver_runfile` and the `nvidia_packages`. These files are
 placed under `offline_pkg_dir` so the `install_gpu` role can install GPU
 support entirely from the local asset server.
 
-`scripts/fetch_offline_assets.sh` also downloads the cunoFS CSI Helm chart and
-its container images. The chart is extracted under
-`roles/cunofs-csi-driver/files/chart` and the tarred images are saved in
-`offline_image_dir` alongside the other archives.
-Image references inside the chart are rewritten to use the
-`registry_host`/`registry_port` settings so the manifests can be applied
-fully offline.
-The script extracts the driver version from the Helm chart and pulls
-`cunofs/cunofs-csi:<version>` accordingly. The version is stored in the
-`cunofs_version` variable used by Ansible to load the tarball named
-`cunofs-csi_<version>.tar`.
-The `setup_registry` role loads these cunoFS image tarballs and pushes the
-images to the local registry so the driver can start without external access.
-The Helm version used for fetching can be customised via the
-`helm_version` variable in `group_vars/all.yml`.
-
-Fetching the cunoFS images requires credentials for the private Docker
-repository. Run `docker login registry-1.docker.io` before executing the
-script or set `SKIP_CUNOFS=1` to skip downloading the cunoFS assets.
-
-Provide the cunoFS license key via the `cunofs_license_key` variable to
-generate a `cunofs-license` Secret during deployment. The driver manifests
-will be installed into the namespace specified by `cunofs_namespace`.
-
-After Traefik is set up, the playbook automatically runs the
-`cunofs-csi-driver` role to deploy the cunoFS CSI driver from the locally
-extracted Helm chart. This step requires no internet access and completes the
-offline Kubernetes installation.
 
 ## Troubleshooting 404 errors when testing Traefik
 If navigating to `http://<NODE_IP>` returns a 404 page after running the playbook,

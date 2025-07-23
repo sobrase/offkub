@@ -1,8 +1,0 @@
-# Placeholder StorageClass definition for cunofs
-apiVersion: storage.k8s.io/v1
-kind: StorageClass
-metadata:
-  name: cunofs-sc
-provisioner: csi.cunofs.com
-parameters:
-  type: default
