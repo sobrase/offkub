@@ -252,39 +252,6 @@ docker pull nvcr.io/nvidia/k8s-device-plugin:${device_plugin_version}
 docker save nvcr.io/nvidia/k8s-device-plugin:${device_plugin_version} \
   -o nvidia-device-plugin_${device_plugin_version}.tar
 
-# cunoFS CSI Helm chart and images (optional)
-if [[ -z "${SKIP_CUNOFS:-}" ]]; then
-  chart_dir="$ROOT_DIR/roles/cunofs-csi-driver/files/chart"
-  mkdir -p "$chart_dir"
-  helm pull --untar oci://registry-1.docker.io/cunofs/cunofs-csi-chart -d "$chart_dir"
-
-  # Determine the driver image version from the chart
-  chart_path="$chart_dir/cunofs-csi-chart"
-  mapfile -t cunofs_images < <(
-    helm template "$chart_path" |
-      grep -oE 'cunofs/cunofs-csi:[^" ]+' |
-      sort -u
-  )
-
-  # Rewrite image references in the fetched cunoFS manifests to use the
-  # local registry. This keeps the deployment fully offline.
-  find "$chart_dir" -type f -name '*.yaml' -print0 \
-    | xargs -0 sed -i "s#docker.io/cunofs#${registry_host}:${registry_port}/cunofs#g"
-
-  for img in "${cunofs_images[@]}"; do
-    full_img="docker.io/${img}"
-    base="$(basename "$img")"
-    file="${base/:/_}.tar"
-    if docker pull "$full_img"; then
-      docker save "$full_img" -o "$file"
-      echo "Saved $full_img to $file"
-    else
-      echo "Warning: failed to pull $full_img. Provide credentials or set SKIP_CUNOFS=1 to skip" >&2
-    fi
-  done
-else
-  echo "Skipping cunoFS CSI driver assets as SKIP_CUNOFS is set" >&2
-fi
 
 # Calico manifest
 curl -L \
