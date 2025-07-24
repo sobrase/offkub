@@ -142,8 +142,10 @@
 
     - name: Create Calico CRD manifest
       shell: kubectl create -f /tmp/calicocrd.yaml
+      register: calico_crd_result
       environment: "{{ kubectl_env }}"
       become: true
+      failed_when: calico_crd_result.rc != 0 and 'AlreadyExists' not in calico_crd_result.stderr
 
     - name: Copy Calico manifest
       copy:
