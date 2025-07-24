@@ -44,7 +44,7 @@ traefik_crds_chart_version: "1.9.0" # traefik-crds chart version
 helm_version: "v3.18.4"            # Helm CLI version used when fetching assets
 
 # Private registry settings
-registry_host: "registrii.local"
+registry_host: "registry.local"
 registry_port: 5000
 
 # Simple HTTP server settings used to distribute offline assets
