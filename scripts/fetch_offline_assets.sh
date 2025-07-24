@@ -249,6 +249,7 @@ docker save python:3.12-alpine -o python_3.12-alpine.tar
 calico_images=(
   "quay.io/tigera/operator:${tigera_operator_version}"
   "docker.io/calico/node:${calico_image_version}"
+  "docker.io/calico/typha:${calico_image_version}"
   "docker.io/calico/cni:${calico_image_version}"
   "docker.io/calico/apiserver:${calico_image_version}"
   "docker.io/calico/kube-controllers:${calico_image_version}"
