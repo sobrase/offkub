@@ -35,7 +35,7 @@ fi
 
 read -r offline_pkg_dir offline_image_dir kube_version kube_version_pkgs \
         registry_version containerd_version calico_version calico_image_version \
-        tigera_operator_version device_plugin_version traefik_version whoami_version traefik_chart_version traefik_crds_chart_version helm_version registry_host registry_port nvidia_driver_runfile <<< "$(python3 - <<PY
+        tigera_operator_version device_plugin_version traefik_version whoami_version traefik_chart_version traefik_crds_chart_version helm_version registry_host registry_port nvidia_driver_runfile csi_provisioner_version csi_resizer_version csi_snapshotter_version livenessprobe_version csi_node_driver_registrar_version snapshot_controller_version <<< "$(python3 - <<PY
 
 import yaml
 from jinja2 import Template
@@ -46,7 +46,8 @@ data=yaml.safe_load(rendered)
 fields=['offline_pkg_dir','offline_image_dir','kube_version','kube_version_pkgs',
         'registry_version','containerd_version','calico_version','calico_image_version',
         'tigera_operator_version','device_plugin_version','traefik_version','whoami_version','traefik_chart_version',
-        'traefik_crds_chart_version','helm_version','registry_host','registry_port','nvidia_driver_runfile']
+        'traefik_crds_chart_version','helm_version','registry_host','registry_port','nvidia_driver_runfile',
+        'csi_provisioner_version','csi_resizer_version','csi_snapshotter_version','livenessprobe_version','csi_node_driver_registrar_version','snapshot_controller_version']
 print(' '.join(str(data.get(k,'')) for k in fields))
 PY
 )"
@@ -86,6 +87,17 @@ PY
 ) )
 
 containerd_pkg_file="containerd.io_${containerd_version}-1_amd64.deb"
+
+# Storage related images
+storage_images=(
+  "gcr.io/k8s-staging-sig-storage/nfsplugin"
+  "registry.k8s.io/sig-storage/csi-provisioner:${csi_provisioner_version}"
+  "registry.k8s.io/sig-storage/csi-resizer:${csi_resizer_version}"
+  "registry.k8s.io/sig-storage/csi-snapshotter:${csi_snapshotter_version}"
+  "registry.k8s.io/sig-storage/livenessprobe:${livenessprobe_version}"
+  "registry.k8s.io/sig-storage/csi-node-driver-registrar:${csi_node_driver_registrar_version}"
+  "registry.k8s.io/sig-storage/snapshot-controller:${snapshot_controller_version}"
+)
 
 mkdir -p "$offline_pkg_dir" "$offline_image_dir"
 gateway_files_dir="$ROOT_DIR/roles/traefik_gateway/files"
@@ -262,6 +274,15 @@ done
 docker pull nvcr.io/nvidia/k8s-device-plugin:${device_plugin_version}
 docker save nvcr.io/nvidia/k8s-device-plugin:${device_plugin_version} \
   -o nvidia-device-plugin_${device_plugin_version}.tar
+
+# CSI and NFS images
+for img in "${storage_images[@]}"; do
+  base="$(basename "$img")"
+  file="${base/:/_}.tar"
+  docker pull "$img"
+  docker save "$img" -o "$file"
+  echo "Saved $img to $file"
+done
 
 
 # Calico manifest
