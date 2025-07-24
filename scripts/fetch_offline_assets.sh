@@ -258,6 +258,8 @@ calico_images=(
   "docker.io/calico/envoy-ratelimit:${calico_image_version}"
   "docker.io/calico/dikastes:${calico_image_version}"
   "docker.io/calico/pod2daemon-flexvol:${calico_image_version}"
+  "docker.io/calico/csi:${calico_image_version}"
+  "docker.io/calico/node-driver-registrar:${calico_image_version}"
   "docker.io/calico/key-cert-provisioner:${calico_image_version}"
   "docker.io/calico/goldmane:${calico_image_version}"
   "docker.io/calico/whisker:${calico_image_version}"
