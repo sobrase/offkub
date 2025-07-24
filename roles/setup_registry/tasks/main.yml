@@ -98,7 +98,7 @@
       - "whisker_{{ calico_image_version }}.tar"
       - "whisker-backend_{{ calico_image_version }}.tar"
     storage_images:
-      - "nfsplugin.tar"
+      - "nfsplugin_canary.tar"
       - "csi-provisioner_{{ csi_provisioner_version }}.tar"
       - "csi-resizer_{{ csi_resizer_version }}.tar"
       - "csi-snapshotter_{{ csi_snapshotter_version }}.tar"
