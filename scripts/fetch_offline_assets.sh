@@ -90,7 +90,7 @@ containerd_pkg_file="containerd.io_${containerd_version}-1_amd64.deb"
 
 # Storage related images
 storage_images=(
-  "gcr.io/k8s-staging-sig-storage/nfsplugin"
+  "gcr.io/k8s-staging-sig-storage/nfsplugin:canary"
   "registry.k8s.io/sig-storage/csi-provisioner:${csi_provisioner_version}"
   "registry.k8s.io/sig-storage/csi-resizer:${csi_resizer_version}"
   "registry.k8s.io/sig-storage/csi-snapshotter:${csi_snapshotter_version}"
