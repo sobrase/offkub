@@ -1,0 +1,19 @@
+---
+# Deploy NFS CSI driver using offline manifest
+- name: Set kubectl environment
+  set_fact:
+    kubectl_env:
+      KUBECONFIG: /etc/kubernetes/admin.conf
+  become: true
+
+- name: Copy NFS CSI manifest
+  copy:
+    src: nfs.yaml
+    dest: /tmp/nfs-csi.yaml
+    mode: '0644'
+  become: true
+
+- name: Apply NFS CSI manifest
+  shell: kubectl apply -f /tmp/nfs-csi.yaml
+  environment: "{{ kubectl_env }}"
+  become: true
