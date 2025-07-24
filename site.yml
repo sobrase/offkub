@@ -42,6 +42,13 @@
   any_errors_fatal: true
   run_once: true
   roles:
+    - role: nfs_csi
+
+- hosts: masters
+  become: yes
+  any_errors_fatal: true
+  run_once: true
+  roles:
     - role: traefik_gateway
 
 - hosts: masters
