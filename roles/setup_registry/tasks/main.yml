@@ -85,6 +85,7 @@
     calico_images:
       - "operator_{{ tigera_operator_version }}.tar"
       - "node_{{ calico_image_version }}.tar"
+      - "typha_{{ calico_image_version }}.tar"
       - "cni_{{ calico_image_version }}.tar"
       - "apiserver_{{ calico_image_version }}.tar"
       - "kube-controllers_{{ calico_image_version }}.tar"

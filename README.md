@@ -60,7 +60,8 @@ cluster once the gateway is running.
 
 `scripts/fetch_offline_assets.sh` now also saves the `traefik/whoami` image
 used by the optional test route so the gateway can serve traffic without
-external access.
+external access. The script additionally pulls the `calico/typha` image
+so Calico components start successfully in fully offline environments.
 
 `scripts/fetch_offline_assets.sh` also retrieves the NVIDIA GPU driver runfile
 specified by `nvidia_driver_runfile` and the `nvidia_packages`. These files are
