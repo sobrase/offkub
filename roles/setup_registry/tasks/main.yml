@@ -94,6 +94,8 @@
       - "envoy-ratelimit_{{ calico_image_version }}.tar"
       - "dikastes_{{ calico_image_version }}.tar"
       - "pod2daemon-flexvol_{{ calico_image_version }}.tar"
+      - "csi_{{ calico_image_version }}.tar"
+      - "node-driver-registrar_{{ calico_image_version }}.tar"
       - "key-cert-provisioner_{{ calico_image_version }}.tar"
       - "goldmane_{{ calico_image_version }}.tar"
       - "whisker_{{ calico_image_version }}.tar"
