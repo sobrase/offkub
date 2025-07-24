@@ -164,6 +164,13 @@
       changed_when: false
       become: true
 
+    - name: Ensure tigera-operator namespace exists
+      shell: kubectl create namespace tigera-operator
+      register: tigera_ns_result
+      environment: "{{ kubectl_env }}"
+      become: true
+      failed_when: tigera_ns_result.rc != 0 and 'AlreadyExists' not in tigera_ns_result.stderr
+
     - name: Apply Calico manifest
       shell: kubectl apply -f /tmp/calico.yaml
       environment: "{{ kubectl_env }}"
