@@ -35,7 +35,7 @@ fi
 
 read -r offline_pkg_dir offline_image_dir kube_version kube_version_pkgs \
         registry_version containerd_version calico_version calico_image_version \
-        device_plugin_version traefik_version whoami_version traefik_chart_version traefik_crds_chart_version helm_version registry_host registry_port nvidia_driver_runfile <<< "$(python3 - <<PY
+        tigera_operator_version device_plugin_version traefik_version whoami_version traefik_chart_version traefik_crds_chart_version helm_version registry_host registry_port nvidia_driver_runfile <<< "$(python3 - <<PY
 
 import yaml
 from jinja2 import Template
@@ -45,7 +45,7 @@ rendered=Template(text).render(**data)
 data=yaml.safe_load(rendered)
 fields=['offline_pkg_dir','offline_image_dir','kube_version','kube_version_pkgs',
         'registry_version','containerd_version','calico_version','calico_image_version',
-        'device_plugin_version','traefik_version','whoami_version','traefik_chart_version',
+        'tigera_operator_version','device_plugin_version','traefik_version','whoami_version','traefik_chart_version',
         'traefik_crds_chart_version','helm_version','registry_host','registry_port','nvidia_driver_runfile']
 print(' '.join(str(data.get(k,'')) for k in fields))
 PY
@@ -235,9 +235,20 @@ docker save python:3.12-alpine -o python_3.12-alpine.tar
 
 # Calico images
 calico_images=(
-  "docker.io/calico/cni:${calico_image_version}"
+  "quay.io/tigera/operator:${tigera_operator_version}"
   "docker.io/calico/node:${calico_image_version}"
+  "docker.io/calico/cni:${calico_image_version}"
+  "docker.io/calico/apiserver:${calico_image_version}"
   "docker.io/calico/kube-controllers:${calico_image_version}"
+  "docker.io/calico/envoy-gateway:${calico_image_version}"
+  "docker.io/calico/envoy-proxy:${calico_image_version}"
+  "docker.io/calico/envoy-ratelimit:${calico_image_version}"
+  "docker.io/calico/dikastes:${calico_image_version}"
+  "docker.io/calico/pod2daemon-flexvol:${calico_image_version}"
+  "docker.io/calico/key-cert-provisioner:${calico_image_version}"
+  "docker.io/calico/goldmane:${calico_image_version}"
+  "docker.io/calico/whisker:${calico_image_version}"
+  "docker.io/calico/whisker-backend:${calico_image_version}"
 )
 for img in "${calico_images[@]}"; do
   base="$(basename "$img")"

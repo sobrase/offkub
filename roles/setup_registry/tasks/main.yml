@@ -83,9 +83,20 @@
       - "coredns_v1.11.3.tar"
       - "pause_3.10.tar"
     calico_images:
-      - "cni_{{ calico_image_version }}.tar"
+      - "operator_{{ tigera_operator_version }}.tar"
       - "node_{{ calico_image_version }}.tar"
+      - "cni_{{ calico_image_version }}.tar"
+      - "apiserver_{{ calico_image_version }}.tar"
       - "kube-controllers_{{ calico_image_version }}.tar"
+      - "envoy-gateway_{{ calico_image_version }}.tar"
+      - "envoy-proxy_{{ calico_image_version }}.tar"
+      - "envoy-ratelimit_{{ calico_image_version }}.tar"
+      - "dikastes_{{ calico_image_version }}.tar"
+      - "pod2daemon-flexvol_{{ calico_image_version }}.tar"
+      - "key-cert-provisioner_{{ calico_image_version }}.tar"
+      - "goldmane_{{ calico_image_version }}.tar"
+      - "whisker_{{ calico_image_version }}.tar"
+      - "whisker-backend_{{ calico_image_version }}.tar"
     nvidia_plugin_image: "nvidia-device-plugin_{{ device_plugin_version }}.tar"
     traefik_image: "traefik_v{{ traefik_version }}.tar"
     python_image: "python_3.12-alpine.tar"
@@ -106,8 +117,8 @@
   shell: |
     img=$(docker load -i /tmp/{{ item }} | awk '/Loaded image:/ {print $3}')
     name=$(echo "$img" | awk -F/ '{print $NF}')
-    docker tag $img {{ registry_host }}:{{ registry_port }}/$name
-    docker push {{ registry_host }}:{{ registry_port }}/$name
+    docker tag $img {{ registry }}/$name
+    docker push {{ registry }}/$name
   args:
     executable: /bin/bash
   loop: "{{ kube_core_images }}"
@@ -128,8 +139,8 @@
   shell: |
     img=$(docker load -i /tmp/{{ item }} | awk '/Loaded image:/ {print $3}')
     name=$(echo "$img" | awk -F/ '{print $NF}')
-    docker tag $img {{ registry_host }}:{{ registry_port }}/$name
-    docker push {{ registry_host }}:{{ registry_port }}/$name
+    docker tag $img {{ registry }}/$name
+    docker push {{ registry }}/$name
   args:
     executable: /bin/bash
   loop: "{{ calico_images }}"
@@ -151,8 +162,8 @@
     # Preserve the repository path so the image is available as
     # <registry_host>:<registry_port>/nvidia/k8s-device-plugin:<tag>
     name=$(echo "$img" | cut -d/ -f2-)
-    docker tag $img {{ registry_host }}:{{ registry_port }}/$name
-    docker push {{ registry_host }}:{{ registry_port }}/$name
+    docker tag $img {{ registry }}/$name
+    docker push {{ registry }}/$name
   args:
     executable: /bin/bash
   become: yes
@@ -170,8 +181,8 @@
   shell: |
     img=$(docker load -i /tmp/{{ traefik_image }} | awk '/Loaded image:/ {print $3}')
     name=$(echo "$img" | awk -F/ '{print $NF}')
-    docker tag $img {{ registry_host }}:{{ registry_port }}/$name
-    docker push {{ registry_host }}:{{ registry_port }}/$name
+    docker tag $img {{ registry }}/$name
+    docker push {{ registry }}/$name
   args:
     executable: /bin/bash
   become: yes
@@ -189,8 +200,8 @@
   shell: |
     img=$(docker load -i /tmp/{{ python_image }} | awk '/Loaded image:/ {print $3}')
     name=$(echo "$img" | awk -F/ '{print $NF}')
-    docker tag $img {{ registry_host }}:{{ registry_port }}/$name
-    docker push {{ registry_host }}:{{ registry_port }}/$name
+    docker tag $img {{ registry }}/$name
+    docker push {{ registry }}/$name
   args:
     executable: /bin/bash
   become: yes
@@ -208,15 +219,15 @@
   shell: |
     img=$(docker load -i /tmp/{{ whoami_image }} | awk '/Loaded image:/ {print $3}')
     name=$(echo "$img" | awk -F/ '{print $NF}')
-    docker tag $img {{ registry_host }}:{{ registry_port }}/$name
-    docker push {{ registry_host }}:{{ registry_port }}/$name
+    docker tag $img {{ registry }}/$name
+    docker push {{ registry }}/$name
   args:
     executable: /bin/bash
   become: yes
 
 # Optional verification that the registry is serving
 - name: Verify local registry catalog
-  shell: curl -sf http://{{ registry_host }}:{{ registry_port }}/v2/_catalog
+  shell: curl -sf http://{{ registry }}/v2/_catalog
   register: registry_check
   changed_when: false
   become: yes
