@@ -133,12 +133,11 @@
   become: yes
 
 - block:
-    - name: Download Calico manifest from asset server
-      get_url:
-        url: "http://{{ asset_server_host }}:{{ asset_server_port }}/images/calico.yaml"
+    - name: Copy Calico manifest
+      copy:
+        src: calico.yaml
         dest: /tmp/calico.yaml
         mode: '0644'
-        timeout: 30
       become: true
 
     - name: Apply Calico CRDs (initial pass)
