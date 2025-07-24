@@ -175,7 +175,7 @@
             kubectl get pods -n calico-system -o jsonpath='{.items[*].status.phase}'
           register: calico_status
           until: calico_status.stdout.split() | unique == ['Running']
-          retries: 20
+          retries: 10
           delay: 15
           environment: "{{ kubectl_env }}"
           changed_when: false
