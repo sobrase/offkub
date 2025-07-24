@@ -140,8 +140,8 @@
         mode: '0644'
       become: true
 
-    - name: Apply Calico CRD manifest
-      shell: kubectl apply -f /tmp/calicocrd.yaml
+    - name: Create Calico CRD manifest
+      shell: kubectl create -f /tmp/calicocrd.yaml
       environment: "{{ kubectl_env }}"
       become: true
 
