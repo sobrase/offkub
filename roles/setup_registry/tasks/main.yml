@@ -146,7 +146,9 @@
 - name: Load and push Calico images
   shell: |
     img=$(docker load -i /tmp/{{ item }} | awk '/Loaded image:/ {print $3}')
-    name=$(echo "$img" | awk -F/ '{print $NF}')
+    # Preserve the repository path so the image is available as
+    # <registry_host>:<registry_port>/calico/<name>:<tag>
+    name=$(echo "$img" | cut -d/ -f2-)
     docker tag $img {{ registry }}/$name
     docker push {{ registry }}/$name
   args:
