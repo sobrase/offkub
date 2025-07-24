@@ -133,18 +133,24 @@
   become: yes
 
 - block:
+    - name: Copy Calico CRD manifest
+      copy:
+        src: calicocrd.yaml
+        dest: /tmp/calicocrd.yaml
+        mode: '0644'
+      become: true
+
+    - name: Apply Calico CRD manifest
+      shell: kubectl apply -f /tmp/calicocrd.yaml
+      environment: "{{ kubectl_env }}"
+      become: true
+
     - name: Copy Calico manifest
       copy:
         src: calico.yaml
         dest: /tmp/calico.yaml
         mode: '0644'
       become: true
-
-    - name: Apply Calico CRDs (initial pass)
-      shell: kubectl apply -f /tmp/calico.yaml || true
-      environment: "{{ kubectl_env }}"
-      become: true
-      failed_when: false
 
     - name: Wait for FelixConfiguration CRD
       shell: kubectl get crd felixconfigurations.crd.projectcalico.org
@@ -162,9 +168,9 @@
       become: true
 
     - block:
-        - name: Wait for Calico pods to be ready
+        - name: Wait for Calico pods in calico-system
           shell: |
-            kubectl get pods -n kube-system -l k8s-app=calico-node -o jsonpath='{.items[*].status.phase}'
+            kubectl get pods -n calico-system -o jsonpath='{.items[*].status.phase}'
           register: calico_status
           until: calico_status.stdout.split() | unique == ['Running']
           retries: 20
@@ -173,17 +179,14 @@
           changed_when: false
           become: true
       rescue:
-        - name: Restart kubelet on all nodes
-          service:
-            name: kubelet
-            state: restarted
-          delegate_to: "{{ item }}"
-          loop: "{{ groups['all'] }}"
-          become: yes
+        - name: Reapply Calico manifest
+          shell: kubectl apply -f /tmp/calico.yaml
+          environment: "{{ kubectl_env }}"
+          become: true
 
-        - name: Wait for Calico pods after kubelet restart
+        - name: Wait for Calico pods after reapply
           shell: |
-            kubectl get pods -n kube-system -l k8s-app=calico-node -o jsonpath='{.items[*].status.phase}'
+            kubectl get pods -n calico-system -o jsonpath='{.items[*].status.phase}'
           register: calico_status_after
           until: calico_status_after.stdout.split() | unique == ['Running']
           retries: 20
