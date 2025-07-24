@@ -58,6 +58,21 @@ nvidia_driver_runfile: "NVIDIA-Linux-x86_64-535.129.03.run"
 nvidia_toolkit_version: "1.15.0"        # Container toolkit package
 device_plugin_version: "v0.15.0"        # NVIDIA device plugin image tag
 
+# CSI and NFS storage components
+csi_provisioner_version: "v5.3.0"
+csi_resizer_version: "v1.14.0"
+csi_snapshotter_version: "v8.3.0"
+livenessprobe_version: "v2.16.0"
+csi_node_driver_registrar_version: "v2.14.0"
+snapshot_controller_version: "v8.3.0"
+nfsplugin_image: "{{ registry }}/k8s-staging-sig-storage/nfsplugin"
+csi_provisioner_image: "{{ registry }}/sig-storage/csi-provisioner:{{ csi_provisioner_version }}"
+csi_resizer_image: "{{ registry }}/sig-storage/csi-resizer:{{ csi_resizer_version }}"
+csi_snapshotter_image: "{{ registry }}/sig-storage/csi-snapshotter:{{ csi_snapshotter_version }}"
+livenessprobe_image: "{{ registry }}/sig-storage/livenessprobe:{{ livenessprobe_version }}"
+csi_node_driver_registrar_image: "{{ registry }}/sig-storage/csi-node-driver-registrar:{{ csi_node_driver_registrar_version }}"
+snapshot_controller_image: "{{ registry }}/sig-storage/snapshot-controller:{{ snapshot_controller_version }}"
+
 # List of NVIDIA container toolkit package filenames served by the asset server
 nvidia_packages:
   - "nvidia-container-toolkit_{{ nvidia_toolkit_version }}-1_amd64.deb"

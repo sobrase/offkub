@@ -15,6 +15,9 @@ kube_core_images: []
 # List of Calico networking images to load. Set via group_vars when required.
 calico_images: []
 
+# List of CSI and NFS images to load
+storage_images: []
+
 # Filename of the NVIDIA device plugin image tarball.
 # Define this in group_vars if GPU support is needed.
 nvidia_plugin_image: ""
