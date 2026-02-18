@@ -16,6 +16,7 @@ restrict_access_disable_ipv6: true
 # Get your current IP: curl -4 -s ifconfig.me   (use -4 for IPv4; firewall allows IPv4 only)
 allowed_source_ips:
   - "92.184.118.126/32"
+  - "90.107.252.190/32"
 
 # Set to true to log dropped packets (kernel log). Use for debugging.
 # View: sudo journalctl -k -g "ipt-drop" -f   or   dmesg -w | grep ipt-drop
