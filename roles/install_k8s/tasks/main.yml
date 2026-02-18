@@ -17,10 +17,10 @@
   loop: "{{ kubernetes_packages }}"
   become: yes
 
-# Determine containerd package filename
+# Determine containerd package filename (use containerd_pkg_filename when set, e.g. Debian Trixie)
 - name: Set containerd package file name
   set_fact:
-    containerd_pkg_file: "containerd.io_{{ containerd_version }}-1_amd64.deb"
+    containerd_pkg_file: "{{ containerd_pkg_filename | default('containerd.io_' ~ containerd_version ~ '-1_amd64.deb') }}"
   become: yes
 
 - name: Download containerd package from asset server
@@ -32,25 +32,21 @@
   when: containerd_pkg_file is defined
   become: yes
 
-# Install OS utility packages first
+# Install OS utility packages first (from group_vars kubernetes_packages: socat, conntrack, ebtables)
 - name: Install OS utility packages
   apt:
     deb: "/tmp/k8s_debs/{{ item }}"
     state: present
-  loop:
-    - "conntrack_1:1.4.7-1+b2_amd64.deb"
-    - "socat_1.7.4.4-2_amd64.deb"
-    - "ebtables_2.0.11-5_amd64.deb"
+  loop: "{{ kubernetes_packages | select('search', 'socat') | list + kubernetes_packages | select('search', 'conntrack') | list + kubernetes_packages | select('search', 'ebtables') | list }}"
   become: yes
 
-# Install Kubernetes support binaries
+# Install Kubernetes support binaries (cri-tools, kubernetes-cni from group_vars)
 - name: Install Kubernetes support binaries
   apt:
     deb: "/tmp/k8s_debs/{{ item }}"
     state: present
-  loop:
-    - "cri-tools_1.32.0-1.1_amd64.deb"
-    - "kubernetes-cni_1.6.0-1.1_amd64.deb"
+  loop: "{{ kubernetes_packages }}"
+  when: "'cri-tools' in item or 'kubernetes-cni' in item"
   become: yes
 
 # Install main Kubernetes binaries
@@ -64,11 +60,12 @@
     - "kubeadm_{{ kube_version_pkgs }}_amd64.deb"
   become: yes
 
-# Install containerd runtime
+# Install containerd runtime (same version on all nodes; allow_downgrade for asset server host that may have Docker's containerd)
 - name: Install containerd
   apt:
     deb: "/tmp/k8s_debs/{{ containerd_pkg_file }}"
     state: present
+    allow_downgrade: yes
   become: yes
 
 # Generate a default containerd configuration

@@ -1,21 +1,73 @@
 # offkub
 
-Utility scripts for preparing an offline Kubernetes deployment.
+Utility scripts for preparing an offline Kubernetes deployment. See [UPGRADE.md](UPGRADE.md) for how to upgrade an existing cluster.
 
-Use `scripts/fetch_offline_assets.sh` on a machine with internet access to
-retrieve required packages, their dependencies, images and manifests. The
-script installs the Helm CLI automatically if it is missing. Copy the resulting
-`offline_pkg_dir` and `offline_image_dir` directories to your air-gapped
-environment. On the master node, start the lightweight HTTP service
-with `scripts/serve_assets.py` to expose these directories to the other
-hosts:
+### Deploy (full flow)
 
-```bash
-python3 scripts/serve_assets.py -d /opt/offline -p 8080
-```
+1. **Fetch offline assets** (once, on a machine with internet; requires root):
+   ```bash
+   sudo ./scripts/fetch_offline_assets.sh
+   ```
+   This populates `/opt/offline/pkgs` and `/opt/offline/images`.
 
-Once the service is running, execute the Ansible playbook. All nodes
-will pull packages and images from this local HTTP server.
+2. **Deploy from your laptop** (SSH to all nodes must work, e.g. via `sshm` / `~/.ssh/config`):
+   ```bash
+   # Optional: use a venv for Ansible
+   python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+
+   # Sync assets to first master and run the playbook
+   ./scripts/deploy.sh
+   ```
+   If assets are already on the first master at `/opt/offline`, use:
+   ```bash
+   ./scripts/deploy.sh --assets-on-master
+   ```
+
+The deploy script syncs `/opt/offline` to the first master, starts the asset server there, then runs the Ansible playbook. All nodes pull packages and images from that HTTP server.
+
+### Inventory (sshm hosts)
+
+The `inventory` file lists your nodes: the first three hosts under `[masters]`
+and the next two under `[workers]` (3 masters, 2 workers). Hosts are taken
+from your SSH config (the same hosts you use with `sshm`). To refresh the list:
+`./scripts/sshm-inventory.sh`. Set `registry_master_ip` in `group_vars/all.yml`
+to the hostname or IP of the first master (the one that runs the asset server and
+`kubeadm init`).
+
+### Restricting access (firewall)
+
+If your nodes are on the public internet, you can whitelist all ports except SSH (22): SSH stays open to anyone; all other ports are allowed only from your IP(s) and cluster nodes. See [SECURITY.md](SECURITY.md) for details. In short:
+
+1. Edit `vars/restrict_access.yml`: set `restrict_access_enabled: true` and `allowed_source_ips: ["YOUR_IP/32"]` (get your IP with `curl -s ifconfig.me`).
+2. Run the firewall playbook: `ansible-playbook -i inventory restrict_access.yml`. The main deploy playbook (`site.yml`) does **not** run the firewall.
+
+### Verification at each stage
+
+Run these scripts from the repo root to confirm each phase before continuing:
+
+| After | Script |
+|-------|--------|
+| (before any deploy) | `./scripts/verify-preflight.sh` |
+| prepare_system | `./scripts/verify-after-prepare_system.sh` |
+| install_k8s | `./scripts/verify-after-install_k8s.sh` |
+| setup_registry | `./scripts/verify-after-setup_registry.sh` |
+| kubeadm_master | `./scripts/verify-after-kubeadm_master.sh` |
+| kubeadm_workers | `./scripts/verify-after-kubeadm_workers.sh` |
+| Full playbook | `./scripts/verify-after-deploy.sh` |
+
+Or run a single stage: `./scripts/verify-all-stages.sh <stage>` with stage one of
+`preflight`, `prepare_system`, `install_k8s`, `setup_registry`, `kubeadm_master`,
+`kubeadm_workers`, `deploy`. Use `./scripts/verify-all-stages.sh all` to run every
+verification (after the full playbook).
+
+### SSH and logs on nodes
+
+Use the same SSH config as `sshm`. Helpers:
+
+- **`./scripts/ssh-node.sh <node>`** – SSH into a node by inventory name (e.g. `vps-2`, `first-master`).
+- **`./scripts/node-logs.sh <node> kubelet`** – Stream kubelet logs on that node.
+- **`./scripts/node-logs.sh <node> containerd`** – Stream containerd logs on that node.
+- **`./scripts/node-logs.sh first-master kubectl`** – List pods (from first master). Use `kubectl <ns/pod>` for a specific pod’s logs.
 
 During initialization the first master node now writes two join command
 scripts: `/tmp/join.sh` for workers and `/tmp/join-master.sh` for additional

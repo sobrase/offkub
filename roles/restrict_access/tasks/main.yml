@@ -1,0 +1,113 @@
+---
+# restrict_access: firewall via iptables. SSH (22) open to all; other ports from allowed_sources + cluster_peers.
+# Configure via vars/restrict_access.yml; run: ansible-playbook -i inventory restrict_access.yml
+
+- name: Fail if restrict_access enabled but no allowed IPs
+  ansible.builtin.assert:
+    that: allowed_source_ips | length > 0
+    fail_msg: "restrict_access_enabled is true but allowed_source_ips is empty. Edit vars/restrict_access.yml."
+  when: restrict_access_enabled
+
+- name: Build list of other cluster node IPs (for node-to-node and asset server)
+  ansible.builtin.set_fact:
+    cluster_peer_ips: "{{ (groups['all'] | difference([inventory_hostname])) | map('extract', hostvars) | selectattr('ansible_default_ipv4', 'defined') | map(attribute='ansible_default_ipv4') | map(attribute='address') | list }}"
+  when: restrict_access_enabled
+
+# ---- When disabled: permissive iptables ----
+- name: Install iptables and netfilter-persistent
+  ansible.builtin.apt:
+    name: "{{ ['iptables', 'netfilter-persistent'] }}"
+    state: present
+  become: true
+
+- name: Ensure /etc/iptables exists
+  ansible.builtin.file:
+    path: /etc/iptables
+    state: directory
+    mode: "0755"
+  become: true
+
+- name: Write permissive iptables rules when firewall disabled (IPv4)
+  ansible.builtin.copy:
+    content: |
+      *filter
+      :INPUT ACCEPT [0:0]
+      :FORWARD ACCEPT [0:0]
+      :OUTPUT ACCEPT [0:0]
+      COMMIT
+    dest: /etc/iptables/rules.v4
+    mode: "0640"
+  when: not restrict_access_enabled
+  become: true
+
+- name: Write permissive iptables rules when firewall disabled (IPv6)
+  ansible.builtin.copy:
+    content: |
+      *filter
+      :INPUT ACCEPT [0:0]
+      :FORWARD ACCEPT [0:0]
+      :OUTPUT ACCEPT [0:0]
+      COMMIT
+    dest: /etc/iptables/rules.v6
+    mode: "0640"
+  when: not restrict_access_enabled
+  become: true
+
+- name: Enable netfilter-persistent when disabled (loads permissive rules on boot)
+  ansible.builtin.systemd:
+    name: netfilter-persistent
+    enabled: true
+  when: not restrict_access_enabled
+  become: true
+
+- name: Load permissive iptables rules when firewall disabled
+  ansible.builtin.command:
+    cmd: "iptables-restore < /etc/iptables/rules.v4 && ip6tables-restore < /etc/iptables/rules.v6"
+  when: not restrict_access_enabled
+  become: true
+  changed_when: true
+
+# ---- When enabled: deploy restrict_access with iptables ----
+- name: Render iptables restrict rules (IPv4)
+  ansible.builtin.template:
+    src: iptables-restrict.v4.j2
+    dest: /etc/iptables/rules.v4
+    mode: "0640"
+  when: restrict_access_enabled
+  become: true
+
+- name: Render iptables restrict rules (IPv6)
+  ansible.builtin.template:
+    src: iptables-restrict.v6.j2
+    dest: /etc/iptables/rules.v6
+    mode: "0640"
+  when: restrict_access_enabled
+  become: true
+
+- name: Load iptables restrict rules (IPv4 + IPv6)
+  ansible.builtin.shell: |
+    iptables-restore < /etc/iptables/rules.v4
+    ip6tables-restore < /etc/iptables/rules.v6
+  when: restrict_access_enabled
+  become: true
+  changed_when: true
+
+- name: Enable netfilter-persistent for next boot
+  ansible.builtin.systemd:
+    name: netfilter-persistent
+    enabled: true
+  when: restrict_access_enabled
+  become: true
+
+- name: Display loaded INPUT rules (verify SSH allowed)
+  ansible.builtin.command:
+    cmd: iptables -L INPUT -n -v --line-numbers
+  when: restrict_access_enabled
+  become: true
+  register: iptables_list
+  changed_when: false
+
+- name: Show restrict_access INPUT rules
+  ansible.builtin.debug:
+    msg: "{{ iptables_list.stdout_lines | default([]) }}"
+  when: restrict_access_enabled

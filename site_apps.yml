@@ -1,0 +1,38 @@
+---
+# Run only the remaining cluster/app layers (workers join + NFS CSI + Traefik + sample app + checks).
+# Use when the control plane and Calico are already up.
+# Full deploy: site.yml. This playbook: site_apps.yml
+
+- hosts: workers
+  become: yes
+  any_errors_fatal: true
+  roles:
+    - role: kubeadm_workers
+
+- hosts: masters
+  become: yes
+  any_errors_fatal: true
+  run_once: true
+  roles:
+    - role: nfs_csi
+
+- hosts: masters
+  become: yes
+  any_errors_fatal: true
+  run_once: true
+  roles:
+    - role: traefik_gateway
+
+- hosts: masters
+  become: yes
+  any_errors_fatal: true
+  run_once: true
+  roles:
+    - role: sample_app
+
+- hosts: masters
+  become: yes
+  any_errors_fatal: true
+  run_once: true
+  roles:
+    - role: post_install_checks

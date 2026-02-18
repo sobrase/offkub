@@ -1,0 +1,11 @@
+---
+# Apply firewall to restrict SSH and Kubernetes API to your IP(s).
+# 1. Edit vars/restrict_access.yml (set restrict_access_enabled: true and allowed_source_ips).
+# 2. Run: ansible-playbook -i inventory restrict_access.yml
+- hosts: all
+  become: yes
+  any_errors_fatal: true
+  vars_files:
+    - vars/restrict_access.yml
+  roles:
+    - role: restrict_access

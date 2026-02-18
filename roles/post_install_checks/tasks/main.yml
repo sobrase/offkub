@@ -32,9 +32,11 @@
   environment: "{{ kubectl_env }}"
   become: true
 
-- name: Enable Calico eBPF
+# eBPF disabled: connect-time load balancer BPF often fails on VPS kernels (Invalid argument).
+# Re-enable with bpfEnabled: true if your kernel supports it (e.g. recent generic kernel).
+- name: Set Calico Felix to iptables (eBPF disabled for VPS kernel compatibility)
   shell: |
-    kubectl patch felixconfigurations default --type merge -p '{"spec": {"bpfEnabled": true, "bpfKubeProxyIptablesCleanupEnabled": false}}'
+    kubectl patch felixconfigurations default --type merge -p '{"spec": {"bpfEnabled": false}}'
   environment: "{{ kubectl_env }}"
   become: true
 

@@ -176,13 +176,46 @@
       environment: "{{ kubectl_env }}"
       become: true
 
+    - name: Wait for tigera-operator pod to appear
+      shell: |
+        kubectl get pods -n tigera-operator --no-headers 2>/dev/null | wc -l
+      register: operator_pod_count
+      until: operator_pod_count.stdout | int > 0
+      retries: 30
+      delay: 5
+      environment: "{{ kubectl_env }}"
+      changed_when: false
+      become: true
+
+    - name: Wait for tigera-operator pod to be Running
+      shell: |
+        kubectl get pods -n tigera-operator -o jsonpath='{.items[*].status.phase}'
+      register: operator_status
+      until: (operator_status.stdout.split() | default([], true) | unique | list) == ['Running']
+      retries: 24
+      delay: 10
+      environment: "{{ kubectl_env }}"
+      changed_when: false
+      become: true
+
+    - name: Wait for Calico pods to appear in calico-system
+      shell: |
+        kubectl get pods -n calico-system --no-headers 2>/dev/null | wc -l
+      register: calico_pod_count
+      until: calico_pod_count.stdout | int > 0
+      retries: 60
+      delay: 10
+      environment: "{{ kubectl_env }}"
+      changed_when: false
+      become: true
+
     - block:
-        - name: Wait for Calico pods in calico-system
+        - name: Wait for Calico pods in calico-system to be Running
           shell: |
             kubectl get pods -n calico-system -o jsonpath='{.items[*].status.phase}'
           register: calico_status
-          until: calico_status.stdout.split() | unique == ['Running']
-          retries: 10
+          until: (calico_status.stdout.split() | default([], true) | unique | list) == ['Running']
+          retries: 40
           delay: 15
           environment: "{{ kubectl_env }}"
           changed_when: false
@@ -197,8 +230,8 @@
           shell: |
             kubectl get pods -n calico-system -o jsonpath='{.items[*].status.phase}'
           register: calico_status_after
-          until: calico_status_after.stdout.split() | unique == ['Running']
-          retries: 20
+          until: (calico_status_after.stdout.split() | default([], true) | unique | list) == ['Running']
+          retries: 40
           delay: 15
           environment: "{{ kubectl_env }}"
           changed_when: false

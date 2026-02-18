@@ -11,7 +11,7 @@ hostNetwork: true
 service:
   enabled: false
 image:
-  registry: registrii.local:5000
+  registry: registry.local:5000
   repository: traefik
   tag: v3.4.1
 updateStrategy:

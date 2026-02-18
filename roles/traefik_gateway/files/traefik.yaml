@@ -172,7 +172,7 @@ spec:
       terminationGracePeriodSeconds: 60
       hostNetwork: true
       containers:
-      - image: registrii.local:5000/traefik:v3.4.1
+      - image: registry.local:5000/traefik:v3.4.1
         imagePullPolicy: IfNotPresent
         name: traefik
         resources:

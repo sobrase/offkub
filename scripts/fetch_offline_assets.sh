@@ -15,22 +15,15 @@ fi
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 VARS_FILE="$ROOT_DIR/group_vars/all.yml"
 
-# Ensure PyYAML is available for parsing YAML
+# Ensure PyYAML and Jinja2 are available (for parsing group_vars)
 if ! python3 - <<'PY' 2>/dev/null
 import yaml
-PY
-then
-  echo "Installing PyYAML for YAML parsing" >&2
-  pip3 install --user PyYAML >/dev/null
-fi
-
-# Ensure Jinja2 is available for templating variables inside the YAML file
-if ! python3 - <<'PY' 2>/dev/null
 import jinja2
 PY
 then
-  echo "Installing Jinja2 for templating" >&2
-  pip3 install --user Jinja2 >/dev/null
+  echo "Installing Python dependencies for YAML/Jinja2 parsing" >&2
+  apt-get update -qq && apt-get install -y -qq python3-yaml python3-jinja2 2>/dev/null || \
+  python3 -m pip install --user PyYAML Jinja2 2>/dev/null || true
 fi
 
 read -r offline_pkg_dir offline_image_dir kube_version kube_version_pkgs \
@@ -157,14 +150,14 @@ fetch_deb() {
   # Avoid literal '*.deb' when there are no dependency packages
   shopt -s nullglob
   # Download package and dependencies into $download_tmp
-  apt-get -y -o Dir::Cache::archives="$download_tmp" --download-only install "${name}=${version}"
+  apt-get -y --allow-downgrades -o Dir::Cache::archives="$download_tmp" --download-only install "${name}=${version}"
   # Rename the primary package to match the file name expected by Ansible
   local main_pkg="${name}_${version}_amd64.deb"
   if [[ -f $main_pkg ]]; then
     mv "$main_pkg" "$offline_pkg_dir/$file"
   else
     # Fallback to apt-get download for the main package if needed
-    apt-get -y download "${name}=${version}"
+    apt-get -y --allow-downgrades download "${name}=${version}"
     mv "${name}_${version//:/%3a}_amd64.deb" "$offline_pkg_dir/$file"
   fi
   # Move dependencies (if any) while avoiding overwriting existing files
@@ -181,7 +174,8 @@ fetch_deb() {
 }
 
 cd "$offline_pkg_dir"
-for pkg in "${kubernetes_packages[@]}" "${registry_packages[@]}" "$containerd_pkg_file"; do
+# containerd is in registry_docker_packages when using trixie; no separate containerd_pkg_file in loop
+for pkg in "${kubernetes_packages[@]}" "${registry_packages[@]}"; do
   # kubernetes-cni and cri-tools are fetched automatically as dependencies
   # of other Kubernetes packages, so skip explicitly downloading them here
   if [[ $pkg == kubernetes-cni_* || $pkg == cri-tools_* ]]; then

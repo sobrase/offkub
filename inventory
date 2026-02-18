@@ -1,9 +1,13 @@
+# Inventory from sshm hosts (sshm search ""). 3 masters + 2 workers.
+# First master (vps-1.vps.ovh.net) runs asset server, registry, and kubeadm init.
+
 [masters]
-10.0.1.103
-10.0.1.102
-10.0.1.101
+vps-1.vps.ovh.net
+vps-2
+vps-3
 
 [workers]
-10.0.1.104
+vps-4
+vps-5
 
 [gpu]

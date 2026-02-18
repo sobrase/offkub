@@ -1,0 +1,6 @@
+---
+# SSH (restrict_access_ssh_port) open to anyone; all other ports whitelist-only. Disabled by default.
+restrict_access_enabled: false
+restrict_access_ssh_port: 22
+restrict_access_disable_ipv6: true
+allowed_source_ips: []
