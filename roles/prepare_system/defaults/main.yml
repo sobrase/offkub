@@ -10,3 +10,9 @@ registry_master_ip: ""
 
 # Placeholder variable - this role currently has no critical defaults
 prepare_system_placeholder: true
+
+# Disable NIC offloading on VPS (avoids networking issues between pods/services).
+# When true, disables rx/tx checksumming, tso, gso, gro, sg on the default IPv4 interface.
+disable_nic_offload: true
+# Override interfaces to configure (e.g. ["eth0"]). Empty = use ansible_default_ipv4.interface.
+nic_offload_interfaces: []

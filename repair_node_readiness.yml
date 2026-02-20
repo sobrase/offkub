@@ -1,0 +1,70 @@
+---
+# One-shot repair for nodes stuck in NotReady.
+# Run: ansible-playbook -i inventory repair_node_readiness.yml
+# Uses first master only; requires SSH and KUBECONFIG on that host.
+- hosts: masters
+  become: true
+  run_once: true
+  tasks:
+    - name: Set kubectl environment
+      set_fact:
+        repair_kubectl_env:
+          KUBECONFIG: /etc/kubernetes/admin.conf
+
+    - name: Set Calico API endpoint to first master IP
+      shell: |
+        cat <<EOF | kubectl apply -f -
+        apiVersion: v1
+        kind: ConfigMap
+        metadata:
+          name: kubernetes-services-endpoint
+          namespace: kube-system
+        data:
+          KUBERNETES_SERVICE_HOST: "{{ hostvars[groups['masters'][0]].ansible_default_ipv4.address }}"
+          KUBERNETES_SERVICE_PORT: "6443"
+        EOF
+      environment: "{{ repair_kubectl_env }}"
+
+    - name: Restart Calico pods in kube-system (legacy)
+      shell: kubectl delete pods -n kube-system -l k8s-app=calico-node --ignore-not-found=true
+      environment: "{{ repair_kubectl_env }}"
+
+    - name: Set Calico Felix to iptables (eBPF off)
+      shell: |
+        kubectl patch felixconfigurations default --type merge -p '{"spec": {"bpfEnabled": false}}'
+      environment: "{{ repair_kubectl_env }}"
+      ignore_errors: true
+      register: felix_patch
+    - name: Retry Felix patch after brief wait (API may be briefly unavailable)
+      shell: |
+        sleep 15
+        kubectl patch felixconfigurations default --type merge -p '{"spec": {"bpfEnabled": false}}'
+      environment: "{{ repair_kubectl_env }}"
+      when: felix_patch is failed
+      ignore_errors: true
+
+    - name: Rollout restart calico-node in calico-system
+      shell: kubectl rollout restart daemonset calico-node -n calico-system
+      environment: "{{ repair_kubectl_env }}"
+      ignore_errors: true
+
+    - name: Wait for all nodes to be Ready
+      shell: |
+        not_ready=$(kubectl get nodes --no-headers 2>/dev/null | grep -v " Ready " | wc -l)
+        [[ "$(echo "$not_ready" | tr -d ' ')" -eq 0 ]]
+      register: nodes_ready
+      retries: 30
+      delay: 10
+      until: nodes_ready.rc == 0
+      environment: "{{ repair_kubectl_env }}"
+      changed_when: false
+
+    - name: Show node status
+      shell: kubectl get nodes -o wide
+      environment: "{{ repair_kubectl_env }}"
+      register: node_status
+      changed_when: false
+
+    - name: Nodes are Ready
+      debug:
+        msg: "{{ node_status.stdout_lines }}"

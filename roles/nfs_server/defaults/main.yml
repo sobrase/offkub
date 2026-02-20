@@ -1,0 +1,5 @@
+---
+# Directory on the first master to export via NFS (CSI driver will create subdirs here)
+nfs_export_path: /srv/nfs/exports
+# Export options: *(rw,sync,no_subtree_check,no_root_squash) for cluster-wide access
+nfs_export_options: "*(rw,sync,no_subtree_check,no_root_squash)"

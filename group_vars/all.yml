@@ -1,5 +1,7 @@
 # Global variables for offline Kubernetes deployment
 
+# SSH user (match your ~/.ssh/config User for these hosts)
+ansible_user: debian
 # Force Ansible to use IPv4 for SSH (avoids freeze when firewall restricts IPv6)
 ansible_ssh_common_args: '-o AddressFamily=inet'
 
@@ -50,6 +52,9 @@ traefik_chart_version: "36.0.0"    # Helm chart version used for templating
 traefik_crds_chart_version: "1.9.0" # traefik-crds chart version
 helm_version: "v3.18.4"            # Helm CLI version used when fetching assets
 
+# Use kube-proxy for Service ClusterIP/NodePort (true). Set false to rely on Calico only.
+use_kube_proxy: true
+
 # Private registry settings
 registry_host: "registry.local"
 registry_port: 5000
@@ -87,9 +92,10 @@ nvidia_packages:
 
 # Hosts file configuration
 add_registry_host_entry: true            # Whether to map registry_host in /etc/hosts
-registry_master_ip: "37.59.119.234"  # First master IP (asset server, registry, kubeadm init); used in /etc/hosts as registry.local
+# Leave empty to use first master IP from inventory; set to override (e.g. floating IP).
+registry_master_ip: ""
 
-# Stable endpoint used for joining additional control plane nodes. Defaults to
-# the first master in the inventory followed by the Kubernetes API port.
-control_plane_endpoint: "{{ registry_master_ip }}:6443"
+# Stable endpoint used for joining additional control plane nodes. Uses
+# registry_master_ip when set, else first master IP from inventory.
+control_plane_endpoint: "{{ ((registry_master_ip | default('')) | trim if (registry_master_ip | default('')) | trim else hostvars[groups['masters'][0]].ansible_default_ipv4.address) }}:6443"
 

@@ -75,7 +75,7 @@
     creates: /etc/containerd/config.toml
   become: yes
 
-# Deploy the custom containerd configuration
+# Deploy the custom containerd configuration (registry over HTTP on all nodes)
 - name: Deploy containerd configuration
   template:
     src: containerd_config.toml.j2
@@ -83,6 +83,7 @@
     mode: '0644'
   become: yes
   notify: Restart containerd
+  tags: [containerd, registry]
 
 - name: Enable and start containerd
   systemd:

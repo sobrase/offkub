@@ -4,8 +4,9 @@
 - name: Determine master node IP for registry mapping
   set_fact:
     registry_master_ip_resolved: >-
-      {{ registry_master_ip | default(hostvars[groups['masters'][0]].ansible_host | default(hostvars[groups['masters'][0]].ansible_default_ipv4.address)) }}
+      {{ (registry_master_ip | default('')) | trim if (registry_master_ip | default('')) | trim else (hostvars[groups['masters'][0]].ansible_host | default(hostvars[groups['masters'][0]].ansible_default_ipv4.address)) }}
   when: add_registry_host_entry
+  tags: [registry]
 
 - name: Ensure {{ registry_host }} is resolvable via /etc/hosts
   lineinfile:
@@ -15,6 +16,7 @@
     state: present
   when: add_registry_host_entry
   become: yes
+  tags: [registry]
 
 - name: Disable swap at runtime
   command: swapoff -a
@@ -74,3 +76,46 @@
       }
     mode: '0644'
   become: yes
+
+# --- Disable NIC offloading (VPS / virtualized networking) ---
+- name: Install ethtool for NIC offload control
+  apt:
+    name: ethtool
+    state: present
+  when: disable_nic_offload | bool
+  become: yes
+  tags: [network_offload]
+
+- name: Set interfaces to disable NIC offload on
+  set_fact:
+    nic_offload_ifaces: "{{ nic_offload_interfaces if (nic_offload_interfaces | length > 0) else [ansible_default_ipv4.interface] }}"
+  when: disable_nic_offload | bool and (nic_offload_interfaces | length > 0 or ansible_default_ipv4.interface is defined)
+  tags: [network_offload]
+
+- name: Create if-up.d script to disable NIC offload on boot
+  copy:
+    dest: /etc/network/if-up.d/ethtool-disable-offload
+    content: |
+      #!/bin/sh
+      # Disable NIC offloading (VPS/virtualized); created by Ansible prepare_system role.
+      [ -z "$IFACE" ] && exit 0
+      [ -x /usr/sbin/ethtool ] || exit 0
+      for opt in rx off tx off sg off tso off gso off gro off; do
+        /usr/sbin/ethtool -K "$IFACE" $opt 2>/dev/null || true
+      done
+    mode: '0755'
+  when: disable_nic_offload | bool
+  become: yes
+  tags: [network_offload]
+
+- name: Disable NIC offload on target interfaces now
+  command: /usr/sbin/ethtool -K {{ item }} rx off tx off sg off tso off gso off gro off
+  loop: "{{ nic_offload_ifaces }}"
+  when:
+    - disable_nic_offload | bool
+    - nic_offload_ifaces is defined
+    - item not in ['lo']
+  ignore_errors: true
+  changed_when: true
+  become: yes
+  tags: [network_offload]

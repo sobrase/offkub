@@ -1,5 +1,3 @@
 ---
-# Default variables for the post_install_checks role
-
-# Placeholder for any future defaults
-post_install_checks_placeholder: true
+# Use kube-proxy for Service routing (true) or disable it (false, Calico-only).
+use_kube_proxy: true

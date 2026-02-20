@@ -1,0 +1,25 @@
+---
+# Deploy NFS (server + CSI + StorageClass as default) and test the default storage class.
+# Run: .venv/bin/ansible-playbook -i inventory deploy_and_test_nfs.yml
+- hosts: masters
+  become: true
+  run_once: true
+  vars:
+    nfs_test_use_default_class: true   # Test using default storage class (omit storageClassName)
+    # Recreate StorageClass so server/share are correct (needed if SC was created with wrong params)
+    nfs_storage_class:
+      create: true
+      recreate: true
+      name: nfs-csi
+      server: ""
+      share: /srv/nfs/exports
+      is_default: true
+      reclaim_policy: Delete
+      volume_binding_mode: Immediate
+      allow_volume_expansion: true
+      mount_options:
+        - nfsvers=4.1
+  roles:
+    - role: nfs_server
+    - role: nfs_csi
+    - role: test_nfs_storage

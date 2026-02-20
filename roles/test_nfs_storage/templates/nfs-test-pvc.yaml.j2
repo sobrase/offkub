@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: nfs-test-pvc
+  namespace: nfs-test
+spec:
+  accessModes: [ReadWriteMany]
+{% if not nfs_test_use_default_class | default(false) %}
+  storageClassName: nfs-csi
+{% endif %}
+  resources:
+    requests:
+      storage: 100Mi

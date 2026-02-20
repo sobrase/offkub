@@ -1,0 +1,24 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nfs-test-pod
+  namespace: nfs-test
+spec:
+  containers:
+    - name: test
+      image: "{{ nfs_test_pod_image | default(registry + '/python:3.12-alpine') }}"
+      command:
+        - python
+        - -c
+        - |
+          p = '/data/test.txt'
+          open(p, 'w').write('nfs-storage-test-ok')
+          print(open(p).read())
+      volumeMounts:
+        - name: data
+          mountPath: /data
+  volumes:
+    - name: data
+      persistentVolumeClaim:
+        claimName: nfs-test-pvc
+  restartPolicy: Never

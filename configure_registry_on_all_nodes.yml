@@ -1,0 +1,18 @@
+---
+# Ensure all nodes use master1 Docker registry over HTTP (containerd + /etc/hosts).
+# Run: .venv/bin/ansible-playbook -i inventory configure_registry_on_all_nodes.yml --tags registry,containerd
+# Then flush handlers (containerd restart): add -e flush_handlers=yes or run a task to restart containerd.
+- hosts: all
+  become: true
+  roles:
+    - role: prepare_system
+      tags: [registry]
+    - role: install_k8s
+      tags: [containerd]
+
+  tasks:
+    - name: Restart containerd so registry config is applied
+      ansible.builtin.systemd:
+        name: containerd
+        state: restarted
+      tags: [containerd, registry]

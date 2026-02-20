@@ -171,10 +171,15 @@ version = 2
       [plugins."io.containerd.grpc.v1.cri".registry.auths]
 
       [plugins."io.containerd.grpc.v1.cri".registry.configs]
+        # Master1 registry: use HTTP (insecure); allow pull/push from registry.local:5000
+        [plugins."io.containerd.grpc.v1.cri".registry.configs."{{ registry_host }}:{{ registry_port }}"]
+          [plugins."io.containerd.grpc.v1.cri".registry.configs."{{ registry_host }}:{{ registry_port }}".tls]
+            insecure_skip_verify = true
 
       [plugins."io.containerd.grpc.v1.cri".registry.headers]
 
         [plugins."io.containerd.grpc.v1.cri".registry.mirrors]
+          # Pull images from master1 registry over HTTP
           [plugins."io.containerd.grpc.v1.cri".registry.mirrors."{{ registry_host }}:{{ registry_port }}"]
             endpoint = ["http://{{ registry_host }}:{{ registry_port }}"]
 

@@ -1,0 +1,3 @@
+---
+# Image for NFS test pod (must have python or shell). Default uses registry python image for offline.
+nfs_test_pod_image: "{{ registry }}/python:3.12-alpine"

@@ -1,0 +1,38 @@
+---
+# Install and configure NFS server on the first master (systemd). Used by the NFS CSI StorageClass.
+
+- name: Install NFS kernel server
+  ansible.builtin.apt:
+    name: nfs-kernel-server
+    state: present
+    update_cache: true
+  become: true
+
+- name: Create NFS export directory
+  ansible.builtin.file:
+    path: "{{ nfs_export_path }}"
+    state: directory
+    mode: "0755"
+  become: true
+
+- name: Configure NFS exports
+  ansible.builtin.lineinfile:
+    path: /etc/exports
+    line: "{{ nfs_export_path }} {{ nfs_export_options }}"
+    regexp: "^{{ nfs_export_path | regex_escape }}\\s+"
+    state: present
+  become: true
+  notify: Reload NFS exports
+
+- name: Enable and start NFS kernel server
+  ansible.builtin.systemd:
+    name: nfs-kernel-server
+    enabled: true
+    state: started
+    daemon_reload: true
+  become: true
+
+- name: Apply exports (idempotent)
+  ansible.builtin.command: exportfs -ra
+  become: true
+  changed_when: false

@@ -1,0 +1,16 @@
+---
+# NFS StorageClass settings (used when creating the StorageClass).
+# server is set at apply time to the first master IP (where nfs_server role runs) unless overridden.
+nfs_storage_class:
+  create: true
+  name: nfs-csi
+  # Override to use a different NFS server; when unset, uses first master IP (nfs_server host).
+  server: ""
+  # Export path on the NFS server; must match nfs_server role nfs_export_path (e.g. /srv/nfs/exports)
+  share: /srv/nfs/exports
+  is_default: false
+  reclaim_policy: Delete
+  volume_binding_mode: Immediate
+  allow_volume_expansion: true
+  mount_options:
+    - nfsvers=4.1

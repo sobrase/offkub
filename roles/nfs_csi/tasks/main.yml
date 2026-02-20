@@ -1,9 +1,14 @@
 ---
-# Deploy NFS CSI driver using offline manifest
+# Deploy NFS CSI driver and StorageClass (NFS server runs on first master via nfs_server role).
 - name: Set kubectl environment
   set_fact:
     kubectl_env:
       KUBECONFIG: /etc/kubernetes/admin.conf
+  become: true
+
+- name: Set NFS server address for StorageClass (first master when not overridden)
+  set_fact:
+    nfs_storage_class_effective: "{{ nfs_storage_class | combine({'server': nfs_storage_class.server | default('') | trim or hostvars[groups['masters'][0]].ansible_default_ipv4.address}) }}"
   become: true
 
 - name: Copy NFS CSI manifest
@@ -17,3 +22,45 @@
   shell: kubectl apply -f /tmp/nfs-csi.yaml
   environment: "{{ kubectl_env }}"
   become: true
+
+- name: Create NFS StorageClass from template
+  ansible.builtin.template:
+    src: nfs_storageclass.yaml.j2
+    dest: /tmp/nfs-storageclass.yaml
+    mode: '0644'
+  vars:
+    nfs_storage_class: "{{ nfs_storage_class_effective }}"
+  when: nfs_storage_class.create | default(true) | bool
+  become: true
+
+- name: Delete existing NFS StorageClass (so it can be re-created with correct server/share)
+  ansible.builtin.shell: kubectl delete storageclass nfs-csi --ignore-not-found=true
+  environment: "{{ kubectl_env }}"
+  become: true
+  when:
+    - nfs_storage_class.create | default(true) | bool
+    - nfs_storage_class.recreate | default(false) | bool
+
+- name: Check if NFS StorageClass already exists
+  ansible.builtin.shell: kubectl get storageclass nfs-csi 2>/dev/null
+  environment: "{{ kubectl_env }}"
+  register: nfs_sc_exists
+  failed_when: false
+  changed_when: false
+  when: nfs_storage_class.create | default(true) | bool
+
+- name: Apply NFS StorageClass (only when it does not exist; parameters are immutable)
+  ansible.builtin.shell: kubectl apply -f /tmp/nfs-storageclass.yaml
+  environment: "{{ kubectl_env }}"
+  become: true
+  when:
+    - nfs_storage_class.create | default(true) | bool
+    - nfs_sc_exists.rc != 0
+
+- name: Set nfs-csi as default StorageClass (patch annotation; safe when SC already exists)
+  ansible.builtin.shell: kubectl patch storageclass nfs-csi -p '{"metadata":{"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}'
+  environment: "{{ kubectl_env }}"
+  become: true
+  when:
+    - nfs_storage_class.create | default(true) | bool
+    - nfs_storage_class.is_default | default(false) | bool

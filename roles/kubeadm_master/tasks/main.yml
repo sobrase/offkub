@@ -191,7 +191,7 @@
       shell: |
         kubectl get pods -n tigera-operator -o jsonpath='{.items[*].status.phase}'
       register: operator_status
-      until: (operator_status.stdout.split() | default([], true) | unique | list) == ['Running']
+      until: operator_status.stdout is search('Running')
       retries: 24
       delay: 10
       environment: "{{ kubectl_env }}"

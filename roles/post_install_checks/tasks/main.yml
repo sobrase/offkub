@@ -7,10 +7,20 @@
       KUBECONFIG: /etc/kubernetes/admin.conf
   become: true
 
-- name: Disable kube-proxy
+# Use kube-proxy for Service ClusterIP/NodePort (default: true). Set use_kube_proxy: false to disable.
+# Use JSON replace so we remove non-calico selector and only keep kubernetes.io/os=linux.
+- name: Enable kube-proxy (schedule on all nodes)
+  shell: |
+    kubectl patch ds kube-proxy -n kube-system --type=json -p '[{"op": "replace", "path": "/spec/template/spec/nodeSelector", "value": {"kubernetes.io/os": "linux"}}]'
+  environment: "{{ kubectl_env }}"
+  become: true
+  when: use_kube_proxy | default(true) | bool
+
+- name: Disable kube-proxy (schedule on no node)
   shell: kubectl patch ds -n kube-system kube-proxy -p '{"spec":{"template":{"spec":{"nodeSelector":{"non-calico":"true"}}}}}'
   environment: "{{ kubectl_env }}"
   become: true
+  when: not (use_kube_proxy | default(true) | bool)
 
 - name: Set Calico API endpoints
   shell: |
@@ -27,8 +37,9 @@
   environment: "{{ kubectl_env }}"
   become: true
 
-- name: Restart Calico pods to pick up API endpoint
-  shell: kubectl delete pods -n kube-system -l k8s-app=calico-node
+# Restart Calico so it picks up API endpoint (kube-system if legacy, calico-system if Tigera operator).
+- name: Restart Calico pods in kube-system (legacy) to pick up API endpoint
+  shell: kubectl delete pods -n kube-system -l k8s-app=calico-node --ignore-not-found=true
   environment: "{{ kubectl_env }}"
   become: true
 
@@ -40,17 +51,38 @@
   environment: "{{ kubectl_env }}"
   become: true
 
+# Tigera operator installs calico-node DaemonSet in calico-system; restart it to apply Felix and API endpoint.
+- name: Rollout restart Calico node DaemonSet in calico-system
+  shell: kubectl rollout restart daemonset calico-node -n calico-system
+  environment: "{{ kubectl_env }}"
+  become: true
+  ignore_errors: true
+
+- name: Wait for all nodes to be Ready
+  shell: |
+    not_ready=$(kubectl get nodes --no-headers 2>/dev/null | grep -v " Ready " | wc -l)
+    [[ "$(echo "$not_ready" | tr -d ' ')" -eq 0 ]]
+  register: nodes_ready
+  retries: 30
+  delay: 10
+  until: nodes_ready.rc == 0
+  environment: "{{ kubectl_env }}"
+  changed_when: false
+  become: true
+
 - name: Copy NVIDIA device plugin manifest
   template:
     src: nvidia-device-plugin.yml.j2
     dest: /tmp/nvidia-device-plugin.yml
     mode: '0644'
   become: true
+  when: groups['gpu'] is defined and groups['gpu'] | length > 0
 
 - name: Apply NVIDIA device plugin manifest
   shell: kubectl apply -f /tmp/nvidia-device-plugin.yml
   environment: "{{ kubectl_env }}"
   become: true
+  when: groups['gpu'] is defined and groups['gpu'] | length > 0
 
 - name: Wait for NVIDIA device plugin rollout
   shell: kubectl rollout status ds/nvidia-device-plugin-daemonset -n kube-system --timeout=120s
@@ -61,6 +93,7 @@
   environment: "{{ kubectl_env }}"
   changed_when: false
   become: true
+  when: groups['gpu'] is defined and groups['gpu'] | length > 0
 
 - name: Get node status
   shell: kubectl get nodes -o wide
@@ -88,5 +121,5 @@
 
 - name: Cluster installation successful
   debug:
-    msg: "Kubernetes cluster is operational with NVIDIA device plugin"
+    msg: "Kubernetes cluster is operational (all nodes Ready)"
   become: true

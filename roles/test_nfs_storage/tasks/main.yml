@@ -1,0 +1,101 @@
+---
+# Test NFS CSI StorageClass: create PVC, mount in pod, write/read, then clean up.
+
+- name: Set kubectl environment
+  set_fact:
+    kubectl_env:
+      KUBECONFIG: /etc/kubernetes/admin.conf
+  become: true
+
+- name: Create test namespace for NFS storage test
+  shell: |
+    kubectl create namespace nfs-test --dry-run=client -o yaml | kubectl apply -f -
+  environment: "{{ kubectl_env }}"
+  become: true
+
+- name: Create PVC (use default storage class when nfs_test_use_default_class is true)
+  template:
+    src: nfs-test-pvc.yaml.j2
+    dest: /tmp/nfs-test-pvc.yaml
+    mode: '0644'
+  become: true
+
+- name: Apply NFS test PVC
+  shell: kubectl apply -f /tmp/nfs-test-pvc.yaml
+  environment: "{{ kubectl_env }}"
+  become: true
+
+- name: Wait for PVC to be Bound
+  block:
+    - name: Wait for PVC to be Bound
+      shell: |
+        kubectl get pvc -n nfs-test nfs-test-pvc -o jsonpath='{.status.phase}'
+      register: pvc_phase
+      retries: 18
+      delay: 5
+      until: pvc_phase.stdout == 'Bound'
+      environment: "{{ kubectl_env }}"
+      changed_when: false
+      become: true
+  rescue:
+    - name: Show PVC and events (provisioning may be slow or failing)
+      shell: |
+        echo "=== PVC describe ==="
+        kubectl describe pvc -n nfs-test nfs-test-pvc
+        echo "=== Recent events (nfs-test) ==="
+        kubectl get events -n nfs-test --sort-by='.lastTimestamp' | tail -30
+      environment: "{{ kubectl_env }}"
+      register: pvc_debug
+      changed_when: false
+      become: true
+    - name: PVC did not bind
+      fail:
+        msg: "PVC nfs-test-pvc stayed Pending. Check NFS server reachability and CSI controller logs. {{ pvc_debug.stdout }}"
+
+- name: Create pod that mounts NFS PVC and writes then reads a file
+  template:
+    src: nfs-test-pod.yaml.j2
+    dest: /tmp/nfs-test-pod.yaml
+    mode: '0644'
+  become: true
+
+- name: Apply NFS test pod
+  shell: kubectl apply -f /tmp/nfs-test-pod.yaml
+  environment: "{{ kubectl_env }}"
+  become: true
+
+- name: Wait for NFS test pod to reach Succeeded
+  shell: |
+    phase=$(kubectl get pod -n nfs-test nfs-test-pod -o jsonpath='{.status.phase}' 2>/dev/null || echo "Pending")
+    [ "$phase" = "Succeeded" ]
+  register: pod_wait
+  retries: 36
+  delay: 5
+  until: pod_wait.rc == 0
+  environment: "{{ kubectl_env }}"
+  changed_when: false
+  become: true
+
+- name: Check NFS test pod output
+  shell: kubectl logs -n nfs-test nfs-test-pod
+  register: nfs_test_logs
+  changed_when: false
+  environment: "{{ kubectl_env }}"
+  become: true
+
+- name: Assert NFS test wrote and read back correctly
+  assert:
+    that: "'nfs-storage-test-ok' in nfs_test_logs.stdout"
+    fail_msg: "NFS storage test failed: expected 'nfs-storage-test-ok' in pod output"
+  become: true
+
+- name: Clean up NFS test namespace
+  shell: kubectl delete namespace nfs-test --timeout=60s
+  environment: "{{ kubectl_env }}"
+  become: true
+  changed_when: true
+
+- name: NFS storage class test passed
+  debug:
+    msg: "NFS StorageClass (nfs-csi) is working: PVC bound, pod mounted volume and read/write succeeded."
+  become: true

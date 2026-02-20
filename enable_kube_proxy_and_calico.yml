@@ -1,0 +1,49 @@
+---
+# Enable kube-proxy and restart Calico so both work together.
+# Run: .venv/bin/ansible-playbook -i inventory enable_kube_proxy_and_calico.yml
+- hosts: masters
+  become: true
+  run_once: true
+  vars:
+    use_kube_proxy: true
+  tasks:
+    - name: Set kubectl environment
+      set_fact:
+        kubectl_env:
+          KUBECONFIG: /etc/kubernetes/admin.conf
+
+    - name: Enable kube-proxy (schedule on all Linux nodes; replace nodeSelector to drop non-calico)
+      shell: |
+        kubectl patch ds kube-proxy -n kube-system --type=json -p '[{"op": "replace", "path": "/spec/template/spec/nodeSelector", "value": {"kubernetes.io/os": "linux"}}]'
+      environment: "{{ kubectl_env }}"
+
+    - name: Rollout restart Calico node DaemonSet
+      shell: kubectl rollout restart daemonset calico-node -n calico-system
+      environment: "{{ kubectl_env }}"
+      ignore_errors: true
+
+    - name: Wait for kube-proxy pods to be running
+      shell: |
+        desired=$(kubectl get ds kube-proxy -n kube-system -o jsonpath='{.status.desiredNumberScheduled}')
+        ready=$(kubectl get ds kube-proxy -n kube-system -o jsonpath='{.status.numberReady}')
+        [[ "$desired" -gt 0 ]] && [[ "$ready" -eq "$desired" ]]
+      register: kube_proxy_ready
+      retries: 24
+      delay: 5
+      until: kube_proxy_ready.rc == 0
+      environment: "{{ kubectl_env }}"
+      changed_when: false
+
+    - name: Show kube-proxy and Calico status
+      shell: |
+        echo "=== kube-proxy ==="
+        kubectl get ds kube-proxy -n kube-system -o wide
+        echo "=== calico-node ==="
+        kubectl get ds calico-node -n calico-system -o wide 2>/dev/null || true
+      environment: "{{ kubectl_env }}"
+      register: status
+      changed_when: false
+
+    - name: Display status
+      debug:
+        msg: "{{ status.stdout_lines }}"

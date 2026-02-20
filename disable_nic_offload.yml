@@ -1,0 +1,8 @@
+---
+# Apply NIC offload disable to current cluster (VPS networking fix).
+# Run: .venv/bin/ansible-playbook -i inventory disable_nic_offload.yml --tags network_offload
+- hosts: all
+  become: yes
+  roles:
+    - role: prepare_system
+  tags: [network_offload]

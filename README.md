@@ -28,11 +28,21 @@ The deploy script syncs `/opt/offline` to the first master, starts the asset ser
 ### Inventory (sshm hosts)
 
 The `inventory` file lists your nodes: the first three hosts under `[masters]`
-and the next two under `[workers]` (3 masters, 2 workers). Hosts are taken
-from your SSH config (the same hosts you use with `sshm`). To refresh the list:
-`./scripts/sshm-inventory.sh`. Set `registry_master_ip` in `group_vars/all.yml`
-to the hostname or IP of the first master (the one that runs the asset server and
-`kubeadm init`).
+and the next two under `[workers]` (3 masters, 2 workers). Use full hostnames
+from your SSH config (`HostName`) so the same host is used everywhere. To refresh
+from SSH config: `./scripts/sshm-inventory.sh`. You can set `registry_master_ip`
+in `group_vars/all.yml` to override the first master IP; leave it empty to use
+the first master’s IP from inventory.
+
+### Docker registry (first master, all nodes use it)
+
+The playbook deploys a **Docker registry** on the **first master** (role `setup_registry`, run once):
+
+- **Registry**: `registry:2` container on port **5000**; reachable as `registry.local:5000`.
+- **First master**: Docker is installed there; the registry runs as a container; all offline images (Kubernetes, Calico, Traefik, CSI, etc.) are pushed to it.
+- **All nodes**: `prepare_system` adds `registry.local` → first master IP in `/etc/hosts` on every node. **containerd** (role `install_k8s`) is configured with a mirror so `registry.local:5000` is used for image pulls. kubeadm and all workloads pull from this registry.
+
+No extra step is required: a full deploy (`site.yml` or `./scripts/deploy.sh`) installs the registry on the first master and points all nodes to it.
 
 ### Restricting access (firewall)
 
@@ -40,6 +50,17 @@ If your nodes are on the public internet, you can whitelist all ports except SSH
 
 1. Edit `vars/restrict_access.yml`: set `restrict_access_enabled: true` and `allowed_source_ips: ["YOUR_IP/32"]` (get your IP with `curl -s ifconfig.me`).
 2. Run the firewall playbook: `ansible-playbook -i inventory restrict_access.yml`. The main deploy playbook (`site.yml`) does **not** run the firewall.
+
+### Nodes NotReady and NFS storage test
+
+If nodes stay **NotReady** after workers join, the playbook’s `post_install_checks` role fixes this by:
+setting the Calico API endpoint, disabling eBPF (Felix iptables mode), restarting Calico pods, then **waiting for all nodes to become Ready** (up to ~5 minutes). The NVIDIA device plugin is only applied when the `[gpu]` group has hosts.
+
+After a full deploy, the **NFS StorageClass** is tested automatically: a PVC using `nfs-csi` is created, a pod mounts it and writes/reads a file, then the test namespace is removed. To re-run only post-install and the NFS test (cluster and NFS already deployed):
+
+```bash
+./scripts/run-post-install-and-nfs-test.sh
+```
 
 ### Verification at each stage
 
