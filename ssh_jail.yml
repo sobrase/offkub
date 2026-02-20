@@ -1,0 +1,14 @@
+---
+# Harden SSH with fail2ban: ban source IP after 5 failed attempts.
+# Whitelists allowed_source_ips (same as firewall) so you are never banned.
+# 1. Edit vars/restrict_access.yml (allowed_source_ips).
+# 2. Run: ansible-playbook -i inventory ssh_jail.yml
+- hosts: all
+  become: true
+  any_errors_fatal: true
+  vars_files:
+    - vars/restrict_access.yml
+  vars:
+    ssh_jail_ignore_ips: "{{ allowed_source_ips }}"
+  roles:
+    - role: ssh_jail

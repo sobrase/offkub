@@ -13,8 +13,20 @@
     mode: '0644'
   become: true
 
-- name: Apply Gateway API CRDs
+- name: Apply Gateway API CRDs (standard)
   shell: kubectl apply -f /tmp/standard-install.yaml
+  environment: "{{ kubectl_env }}"
+  become: true
+
+- name: Copy Gateway API experimental CRDs (BackendTLSPolicy, etc.)
+  copy:
+    src: experimental-install.yaml
+    dest: /tmp/experimental-install.yaml
+    mode: '0644'
+  become: true
+
+- name: Apply Gateway API experimental CRDs (BackendTLSPolicy)
+  shell: kubectl apply -f /tmp/experimental-install.yaml
   environment: "{{ kubectl_env }}"
   become: true
 

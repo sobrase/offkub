@@ -1,0 +1,31 @@
+---
+# ssh_jail: fail2ban for SSH. Block source IP after N failed attempts; whitelist IPs never banned.
+# Run with vars from vars/restrict_access.yml so allowed_source_ips are whitelisted.
+
+- name: Install fail2ban
+  ansible.builtin.apt:
+    name: fail2ban
+    state: present
+  become: true
+
+- name: Ensure jail.d exists
+  ansible.builtin.file:
+    path: /etc/fail2ban/jail.d
+    state: directory
+    mode: "0755"
+  become: true
+
+- name: Deploy SSH jail config
+  ansible.builtin.template:
+    src: jail.local.j2
+    dest: /etc/fail2ban/jail.d/sshd.local
+    mode: "0644"
+  become: true
+  notify: Restart fail2ban
+
+- name: Enable and start fail2ban
+  ansible.builtin.systemd:
+    name: fail2ban
+    state: started
+    enabled: true
+  become: true

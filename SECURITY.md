@@ -82,6 +82,43 @@ Or run the script: `./scripts/disable-firewall-via-console.sh`
 
 Then SSH should work again. Set `restrict_access_enabled: false` in `vars/restrict_access.yml` and run `restrict_access.yml` to clean up, then fix your config and re-apply.
 
+---
+
+## SSH jail (fail2ban)
+
+In addition to the firewall, you can harden SSH with **fail2ban**: any source IP that fails SSH authentication **5 times** within 10 minutes is **banned** for 1 hour (configurable). Your own IP(s) are **whitelisted** (same list as `allowed_source_ips`) so you are never banned.
+
+### Apply SSH jail
+
+Uses the same `vars/restrict_access.yml` (so `allowed_source_ips` are whitelisted):
+
+```bash
+ansible-playbook -i inventory ssh_jail.yml
+```
+
+### Defaults (role `ssh_jail`)
+
+- **maxretry**: 5 failed attempts → ban
+- **findtime**: 10 minutes (window for counting failures)
+- **bantime**: 1 hour
+- **ignoreip**: `127.0.0.1/8`, `::1`, plus all `allowed_source_ips`
+
+Override in the playbook or in `vars/restrict_access.yml` if you use the same vars for both playbooks.
+
+### If you get banned
+
+From another IP (or after bantime expires), SSH in and unban:
+
+```bash
+sudo fail2ban-client set sshd unbanip <BANNED_IP>
+# or unban all:
+sudo fail2ban-client set sshd unban --all
+```
+
+To disable fail2ban on a host: `sudo systemctl stop fail2ban && sudo systemctl disable fail2ban`.
+
+---
+
 ## Optional: provider-level firewall
 
 Some providers (e.g. OVH) offer a **cloud firewall** in the control panel. You can whitelist ports there instead of (or in addition to) iptables on the nodes. That way rules are applied before traffic reaches the VM.

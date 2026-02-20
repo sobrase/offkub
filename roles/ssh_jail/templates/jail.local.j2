@@ -1,0 +1,10 @@
+# Managed by Ansible (ssh_jail role). SSH jail: ban after {{ ssh_jail_maxretry }} failed attempts.
+[sshd]
+enabled = true
+port = {{ ssh_jail_port }}
+filter = sshd
+logpath = %(sshd_log)s
+maxretry = {{ ssh_jail_maxretry }}
+findtime = {{ ssh_jail_findtime }}
+bantime = {{ ssh_jail_bantime }}
+ignoreip = 127.0.0.1/8 ::1 {{ ssh_jail_ignore_ips | join(' ') }}

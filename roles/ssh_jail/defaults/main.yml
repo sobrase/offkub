@@ -1,0 +1,8 @@
+---
+# fail2ban SSH jail: block IP after N failed attempts. Whitelist = never banned.
+ssh_jail_maxretry: 5
+ssh_jail_findtime: "10m"   # time window for counting failures
+ssh_jail_bantime: "1h"     # how long to ban (e.g. 1h, 24h, 1w)
+ssh_jail_port: "{{ restrict_access_ssh_port | default(22) }}"
+# IPs/CIDRs to never ban (set by playbook from allowed_source_ips, plus 127.0.0.1/8 ::1 in config)
+ssh_jail_ignore_ips: []
