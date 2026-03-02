@@ -41,6 +41,8 @@ The playbook deploys a **Docker registry** on the **first master** (role `setup_
 - **Registry**: `registry:2` container on port **5000**; reachable as `registry.local:5000`.
 - **First master**: Docker is installed there; the registry runs as a container; all offline images (Kubernetes, Calico, Traefik, CSI, etc.) are pushed to it.
 - **All nodes**: `prepare_system` adds `registry.local` → first master IP in `/etc/hosts` on every node. **containerd** (role `install_k8s`) is configured with a mirror so `registry.local:5000` is used for image pulls. kubeadm and all workloads pull from this registry.
+- **Registry data** is stored under `registry_data_path` (default `/srv/registry`). A **daily cron job** runs garbage-collection to remove unused blobs and limit disk use. If you later add a separate disk so a full registry cannot fill root, set `registry_data_device` in `group_vars/all.yml` (e.g. `"/dev/sdb1"`), format it, then run with `--tags registry_apply` to have the role mount it at `registry_data_path`.
+- **Garbage collection**: a daily cron job (3:00) runs `registry garbage-collect` to remove unused blobs. Ensure the registry config has `storage.delete.enabled: true` (the role deploys this).
 
 No extra step is required: a full deploy (`site.yml` or `./scripts/deploy.sh`) installs the registry on the first master and points all nodes to it.
 
@@ -61,6 +63,19 @@ After a full deploy, the **NFS StorageClass** is tested automatically: a PVC usi
 ```bash
 ./scripts/run-post-install-and-nfs-test.sh
 ```
+
+### First master restored (etcd out of sync)
+
+If you restored **VPS1** (first master) to a previous snapshot, its etcd data will not match the other control-plane nodes and **etcd will not start** on VPS1. Rejoin VPS1 to the cluster so it gets a fresh etcd member:
+
+1. Ensure at least one other master (e.g. the second in your inventory) is healthy and the API is reachable.
+2. Run:
+
+   ```bash
+   .venv/bin/ansible-playbook -i inventory rejoin_first_master.yml
+   ```
+
+   This copies a working `admin.conf` from the second master to VPS1, runs `kubeadm reset phase remove-etcd-member` on VPS1 (to remove its stale etcd member from the cluster), does a full `kubeadm reset` on VPS1, then generates a new control-plane join command from the second master and runs `kubeadm join --control-plane` on VPS1. After that, all three masters and workers should be Ready.
 
 ### Verification at each stage
 

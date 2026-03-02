@@ -4,6 +4,13 @@
 # Port for the local Docker registry. Override in group_vars if needed
 registry_port: "5000"
 
+# Host path for registry data. Mount a separate disk/partition here (e.g. in fstab)
+# so a full registry does not fill the root filesystem (SSH and system stay available).
+registry_data_path: "/srv/registry"
+# When set (e.g. /dev/sdb1), mount this device at registry_data_path so registry uses a separate filesystem.
+registry_data_device: ""
+registry_data_fstype: "ext4"
+
 # Registry image version
 registry_version: "2.8.2"
 

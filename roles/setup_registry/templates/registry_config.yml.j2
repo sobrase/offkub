@@ -1,0 +1,9 @@
+# Docker Registry v2 config
+# Data is stored in /var/lib/registry (bind-mounted from host {{ registry_data_path }})
+# delete.enabled allows garbage-collect to remove unused blobs
+version: 0.1
+storage:
+  filesystem:
+    rootdirectory: /var/lib/registry
+  delete:
+    enabled: true

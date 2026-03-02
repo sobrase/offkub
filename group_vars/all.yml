@@ -59,6 +59,11 @@ use_kube_proxy: true
 registry_host: "registry.local"
 registry_port: 5000
 registry: "{{ registry_host }}:{{ registry_port }}"
+# Host path for registry data. Daily GC limits bloat; optional: set registry_data_device to a block device to use a separate filesystem.
+registry_data_path: "/srv/registry"
+# Optional: block device (e.g. /dev/sdb1) to mount at registry_data_path so registry cannot fill root.
+registry_data_device: ""
+registry_data_fstype: "ext4"
 # etcd image in offline registry (may differ from kubeadm default; set to match fetched image)
 etcd_image_tag: "3.5.16-0"
 

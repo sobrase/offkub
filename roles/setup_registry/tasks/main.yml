@@ -60,16 +60,93 @@
   shell: docker load -i /tmp/registry.tar
   become: yes
 
-- name: Ensure registry container is running
-  shell: |
-    if ! docker ps -a --format '{{"{{"}}.Names{{"}}"}}' | grep -q '^registry$'; then
-      docker run -d -p {{ registry_port }}:5000 --restart=always --name registry registry:2
-    else
-      docker start registry
-    fi
-  args:
-    executable: /bin/bash
+# Dedicated filesystem for registry data so a full registry does not fill root (SSH stays available)
+# Tag registry_apply: run only these tasks when applying registry config/volume/cron (no asset server).
+- name: Ensure registry data mount point exists
+  file:
+    path: "{{ registry_data_path }}"
+    state: directory
+    mode: '0755'
   become: yes
+  tags: [registry_apply]
+
+- name: Mount separate device at registry data path
+  when: registry_data_device | length > 0
+  block:
+    - name: Add registry data device to fstab
+      mount:
+        path: "{{ registry_data_path }}"
+        src: "{{ registry_data_device }}"
+        fstype: "{{ registry_data_fstype }}"
+        opts: defaults,nofail
+        state: mounted
+  become: yes
+  tags: [registry_apply]
+
+- name: Ensure registry config directory exists
+  file:
+    path: /etc/docker/registry
+    state: directory
+    mode: '0755'
+  become: yes
+  tags: [registry_apply]
+
+- name: Deploy registry config (enables delete for garbage-collect)
+  template:
+    src: registry_config.yml.j2
+    dest: /etc/docker/registry/config.yml
+    mode: '0644'
+  become: yes
+  tags: [registry_apply]
+
+- name: Check if registry container exists and has data volume
+  shell: |
+    if ! docker ps -a --format '{{"{{"}}.Names{{"}}"}}' | grep -qx 'registry'; then
+      echo 'absent'
+    elif docker inspect registry --format '{{"{{"}}range .Mounts{{"}}"}}{{"{{"}}.Source{{"}}"}} {{"{{"}}end{{"}}"}}' | grep -q '{{ registry_data_path }}'; then
+      echo 'ok'
+    else
+      echo 'recreate'
+    fi
+  register: registry_container_state
+  changed_when: false
+  become: yes
+  tags: [registry_apply]
+
+- name: Remove registry container (missing data volume, will recreate with volume)
+  when: registry_container_state.stdout == 'recreate'
+  shell: docker stop registry; docker rm registry
+  become: yes
+  tags: [registry_apply]
+
+- name: Create registry container with dedicated data volume and config
+  when: registry_container_state.stdout in ['absent', 'recreate']
+  shell: |
+    docker run -d \
+      -p {{ registry_port }}:5000 \
+      --restart=always \
+      --name registry \
+      -v {{ registry_data_path }}:/var/lib/registry \
+      -v /etc/docker/registry/config.yml:/etc/docker/registry/config.yml:ro \
+      registry:2
+  become: yes
+  tags: [registry_apply]
+
+- name: Start registry container (already has correct volume)
+  when: registry_container_state.stdout == 'ok'
+  shell: docker start registry
+  become: yes
+  tags: [registry_apply]
+
+- name: Install daily cron to garbage-collect unused registry blobs
+  copy:
+    dest: /etc/cron.d/registry-garbage-collect
+    content: |
+      # Garbage-collect unused Docker registry blobs (daily at 03:00)
+      0 3 * * * root docker exec registry bin/registry garbage-collect /etc/docker/registry/config.yml
+    mode: '0644'
+  become: yes
+  tags: [registry_apply]
 
 # Define lists of images to load into the registry
 - name: Define Kubernetes images

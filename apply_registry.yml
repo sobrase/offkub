@@ -1,0 +1,8 @@
+---
+# Apply registry role only (dedicated data path, config, cron).
+# Run: ansible-playbook -i inventory apply_registry.yml
+- hosts: masters
+  become: yes
+  run_once: true
+  roles:
+    - role: setup_registry
