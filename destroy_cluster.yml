@@ -1,0 +1,44 @@
+---
+# Tear down the Kubernetes cluster on all nodes. Run before a full redeploy.
+# Usage: .venv/bin/ansible-playbook -i inventory destroy_cluster.yml
+# Then recreate with: ./scripts/deploy.sh (or ./scripts/deploy.sh --assets-on-master)
+
+- hosts: all
+  become: true
+  any_errors_fatal: false
+  tasks:
+    - name: kubeadm reset (force)
+      ansible.builtin.shell: kubeadm reset -f
+      register: reset_result
+      failed_when: false
+      changed_when: reset_result.rc == 0
+
+    - name: Remove leftover /etc/kubernetes
+      ansible.builtin.file:
+        path: /etc/kubernetes
+        state: absent
+      failed_when: false
+
+    - name: Remove leftover /var/lib/etcd
+      ansible.builtin.file:
+        path: /var/lib/etcd
+        state: absent
+      failed_when: false
+
+    - name: Remove leftover /var/lib/kubelet
+      ansible.builtin.file:
+        path: /var/lib/kubelet
+        state: absent
+      failed_when: false
+
+    - name: Remove leftover CNI config
+      ansible.builtin.file:
+        path: /etc/cni/net.d
+        state: absent
+      failed_when: false
+
+    - name: Restart containerd so next kubeadm init starts clean
+      ansible.builtin.systemd:
+        name: containerd
+        state: restarted
+      failed_when: false

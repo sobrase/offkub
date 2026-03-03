@@ -8,12 +8,21 @@
   become: true
 
 # Use kube-proxy for Service ClusterIP/NodePort (default: true). Set use_kube_proxy: false to disable.
-# Use JSON replace so we remove non-calico selector and only keep kubernetes.io/os=linux.
+# Use JSON replace so we remove non-calico selector; fallback to add if nodeSelector missing (fresh cluster).
 - name: Enable kube-proxy (schedule on all nodes)
-  shell: |
-    kubectl patch ds kube-proxy -n kube-system --type=json -p '[{"op": "replace", "path": "/spec/template/spec/nodeSelector", "value": {"kubernetes.io/os": "linux"}}]'
-  environment: "{{ kubectl_env }}"
-  become: true
+  block:
+    - name: Set kube-proxy nodeSelector to kubernetes.io/os=linux (replace)
+      shell: |
+        kubectl patch ds kube-proxy -n kube-system --type=json -p '[{"op": "replace", "path": "/spec/template/spec/nodeSelector", "value": {"kubernetes.io/os": "linux"}}]'
+      environment: "{{ kubectl_env }}"
+      register: kube_proxy_patch
+      become: true
+  rescue:
+    - name: Set kube-proxy nodeSelector (add if path missing)
+      shell: |
+        kubectl patch ds kube-proxy -n kube-system --type=json -p '[{"op": "add", "path": "/spec/template/spec/nodeSelector", "value": {"kubernetes.io/os": "linux"}}]'
+      environment: "{{ kubectl_env }}"
+      become: true
   when: use_kube_proxy | default(true) | bool
 
 - name: Disable kube-proxy (schedule on no node)
@@ -50,6 +59,23 @@
     kubectl patch felixconfigurations default --type merge -p '{"spec": {"bpfEnabled": false}}'
   environment: "{{ kubectl_env }}"
   become: true
+  register: felix_patch
+  retries: 4
+  delay: 5
+  until: felix_patch.rc == 0
+  ignore_errors: true
+
+- name: Retry Felix patch (API may be briefly unavailable after Calico restart)
+  shell: |
+    kubectl patch felixconfigurations default --type merge -p '{"spec": {"bpfEnabled": false}}'
+  environment: "{{ kubectl_env }}"
+  become: true
+  when: felix_patch is failed
+  register: felix_retry
+  retries: 2
+  delay: 5
+  until: felix_retry.rc == 0
+  ignore_errors: true
 
 # Tigera operator installs calico-node DaemonSet in calico-system; restart it to apply Felix and API endpoint.
 - name: Rollout restart Calico node DaemonSet in calico-system
@@ -58,13 +84,17 @@
   become: true
   ignore_errors: true
 
+- name: Brief pause for Calico to start rolling
+  pause:
+    seconds: 10
+
 - name: Wait for all nodes to be Ready
   shell: |
     not_ready=$(kubectl get nodes --no-headers 2>/dev/null | grep -v " Ready " | wc -l)
-    [[ "$(echo "$not_ready" | tr -d ' ')" -eq 0 ]]
+    [ "$(echo "$not_ready" | tr -d ' ')" -eq 0 ]
   register: nodes_ready
-  retries: 30
-  delay: 10
+  retries: 18
+  delay: 5
   until: nodes_ready.rc == 0
   environment: "{{ kubectl_env }}"
   changed_when: false
@@ -85,10 +115,10 @@
   when: groups['gpu'] is defined and groups['gpu'] | length > 0
 
 - name: Wait for NVIDIA device plugin rollout
-  shell: kubectl rollout status ds/nvidia-device-plugin-daemonset -n kube-system --timeout=120s
+  shell: kubectl rollout status ds/nvidia-device-plugin-daemonset -n kube-system --timeout=60s
   register: nvidia_rollout
   retries: 5
-  delay: 30
+  delay: 15
   until: nvidia_rollout.rc == 0
   environment: "{{ kubectl_env }}"
   changed_when: false

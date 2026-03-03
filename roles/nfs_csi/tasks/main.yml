@@ -23,6 +23,17 @@
   environment: "{{ kubectl_env }}"
   become: true
 
+- name: Wait for NFS CSI controller to be ready
+  shell: |
+    kubectl get deployment -n kube-system csi-nfs-controller -o jsonpath='{.status.readyReplicas}' 2>/dev/null
+  register: csi_ready
+  until: csi_ready.stdout | default('0') | int >= 1
+  retries: 24
+  delay: 5
+  environment: "{{ kubectl_env }}"
+  changed_when: false
+  become: true
+
 - name: Create NFS StorageClass from template
   ansible.builtin.template:
     src: nfs_storageclass.yaml.j2

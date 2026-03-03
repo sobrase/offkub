@@ -25,9 +25,11 @@
   roles:
     - role: setup_registry
 
+# serial: 1 so control-plane join runs one at a time (etcd allows only one learner at a time)
 - hosts: masters
   become: yes
   any_errors_fatal: true
+  serial: 1
   roles:
     - role: kubeadm_master
 

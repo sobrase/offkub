@@ -15,9 +15,10 @@ restrict_access_disable_ipv6: true
 # Your IP(s) in CIDR notation – allowed to reach any port (except SSH which is open to all).
 # Get your current IP: curl -4 -s ifconfig.me   (use -4 for IPv4; firewall allows IPv4 only)
 allowed_source_ips:
-  - "92.184.118.198/32"
   - "90.107.252.190/32"
   - "88.166.14.13/32"
+  - "130.180.218.58/32"
+  - "92.184.96.103/32"
 # Set to true to log dropped packets (kernel log). Use for debugging.
 # View: sudo journalctl -k -g "ipt-drop" -f   or   dmesg -w | grep ipt-drop
 restrict_access_log_drops: true

@@ -1,0 +1,21 @@
+---
+# Fix kubelet kubeconfig to talk to master2 API instead of restored master1.
+# Run: .venv/bin/ansible-playbook -i inventory fix_kubelet_apiserver.yml
+- hosts: all
+  become: true
+  vars:
+    old_apiserver_ip: "{{ hostvars[groups['masters'][0]].ansible_default_ipv4.address }}"
+    new_apiserver_ip: "{{ hostvars[groups['masters'][1]].ansible_default_ipv4.address }}"
+  tasks:
+    - name: Replace kubelet apiserver endpoint to point to master2
+      ansible.builtin.replace:
+        path: /etc/kubernetes/kubelet.conf
+        regexp: 'server: https://{{ old_apiserver_ip }}:6443'
+        replace: 'server: https://{{ new_apiserver_ip }}:6443'
+      register: kubelet_conf_replace
+
+    - name: Restart kubelet when kubelet.conf changed
+      ansible.builtin.systemd:
+        name: kubelet
+        state: restarted
+      when: kubelet_conf_replace is changed

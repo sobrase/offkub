@@ -1,0 +1,35 @@
+---
+# Fix CoreDNS stuck in Unknown / sandbox recreated: delete pods so they are recreated.
+# Run: .venv/bin/ansible-playbook -i inventory fix_coredns_pods.yml
+- hosts: "{{ groups['masters'][0] }}"
+  become: true
+  tasks:
+    - name: Delete CoreDNS pods to force clean recreation
+      ansible.builtin.shell: |
+        export KUBECONFIG=/etc/kubernetes/admin.conf
+        kubectl delete pods -n kube-system -l k8s-app=kube-dns --force --grace-period=0
+      register: delete_coredns
+      changed_when: delete_coredns.rc == 0
+      failed_when: false
+
+    - name: Wait for CoreDNS pods to be Ready
+      ansible.builtin.shell: |
+        export KUBECONFIG=/etc/kubernetes/admin.conf
+        for i in 1 2 3 4 5 6 7 8 9 10 11 12; do
+          ready=$(kubectl get pods -n kube-system -l k8s-app=kube-dns -o jsonpath='{.items[*].status.conditions[?(@.type=="Ready")].status}' 2>/dev/null | tr ' ' '\n' | grep -c True 2>/dev/null || echo 0)
+          ready=${ready:-0}
+          [ "$ready" -ge 1 ] 2>/dev/null && exit 0
+          sleep 10
+        done
+        exit 1
+      register: wait_coredns
+      changed_when: false
+      failed_when: false
+      ignore_errors: true
+
+    - name: Show CoreDNS pod status
+      ansible.builtin.shell: |
+        export KUBECONFIG=/etc/kubernetes/admin.conf
+        kubectl get pods -n kube-system -l k8s-app=kube-dns -o wide
+      register: coredns_status
+      changed_when: false

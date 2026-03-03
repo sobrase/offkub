@@ -1,0 +1,28 @@
+---
+# One-off: apply Installation CR so tigera-operator creates calico-system (fix for uninstall Job having run).
+- hosts: "{{ groups['masters'][0] }}"
+  become: true
+  tasks:
+    - name: Apply Calico Installation CR
+      ansible.builtin.shell: |
+        KUBECONFIG=/etc/kubernetes/admin.conf kubectl apply -f - <<'EOF'
+        apiVersion: operator.tigera.io/v1
+        kind: Installation
+        metadata:
+          name: default
+        spec:
+          imagePullSecrets: []
+          kubeletVolumePluginPath: /var/lib/kubelet
+          kubernetesProvider: ""
+          registry: registry.local:5000
+        EOF
+      register: apply_result
+      changed_when: "'configured' in apply_result.stdout or 'created' in apply_result.stdout"
+
+    - name: Wait for calico-system pods to appear
+      ansible.builtin.shell: KUBECONFIG=/etc/kubernetes/admin.conf kubectl get pods -n calico-system --no-headers 2>/dev/null | wc -l
+      register: calico_count
+      until: calico_count.stdout | int > 0
+      retries: 60
+      delay: 10
+      changed_when: false

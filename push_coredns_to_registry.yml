@@ -1,0 +1,78 @@
+---
+# Push CoreDNS image to the local registry (fix ImagePullBackOff when coredns is missing).
+# Uses same space check and tarball cleanup as setup_registry to avoid filling the filesystem.
+# Run: .venv/bin/ansible-playbook -i inventory push_coredns_to_registry.yml
+# Requires: asset server serving the image, or copy coredns_v1.11.3.tar to the first master's /tmp and set coredns_tarball_path.
+- hosts: "{{ groups['masters'][0] }}"
+  become: true
+  vars:
+    coredns_tar: "coredns_v1.11.3.tar"
+    coredns_tarball_path: ""  # If set (e.g. /tmp/coredns_v1.11.3.tar), use this instead of downloading
+  tasks:
+    - name: Check free space before push (registry and /tmp)
+      ansible.builtin.shell: |
+        reg_avail=$(df -BM "{{ registry_data_path }}" --output=avail 2>/dev/null | tail -1 | tr -d 'M ' || echo 0)
+        tmp_avail=$(df -BM /tmp --output=avail 2>/dev/null | tail -1 | tr -d 'M ' || echo 0)
+        min={{ registry_min_free_mb | default(1024) }}
+        if [ "$reg_avail" -lt "$min" ]; then echo "FAIL: {{ registry_data_path }} has ${reg_avail}MB free, need ${min}MB"; exit 1; fi
+        if [ "$tmp_avail" -lt "$min" ]; then echo "FAIL: /tmp has ${tmp_avail}MB free, need ${min}MB"; exit 1; fi
+        echo "ok"
+      args:
+        executable: /bin/bash
+      register: space_check
+      changed_when: false
+
+    - name: Fail if free space too low
+      ansible.builtin.fail:
+        msg: "{{ space_check.stderr }}"
+      when: space_check.rc != 0
+
+    - name: Download CoreDNS tarball from asset server
+      ansible.builtin.get_url:
+        url: "http://{{ asset_server_host }}:{{ asset_server_port }}/images/{{ coredns_tar }}"
+        dest: "/tmp/{{ coredns_tar }}"
+        mode: '0644'
+        timeout: 60
+      when: coredns_tarball_path | length == 0
+
+    - name: Check existing CoreDNS tarball is present
+      ansible.builtin.stat:
+        path: "{{ coredns_tarball_path }}"
+      register: coredns_tar_stat
+      when: coredns_tarball_path | length > 0
+
+    - name: Fail if coredns_tarball_path does not exist
+      ansible.builtin.fail:
+        msg: "Tarball not found: {{ coredns_tarball_path }}"
+      when: coredns_tarball_path | length > 0 and not coredns_tar_stat.stat.exists
+
+    - name: Use existing CoreDNS tarball path
+      ansible.builtin.set_fact:
+        _coredns_tar_path: "{{ coredns_tarball_path }}"
+      when: coredns_tarball_path | length > 0 and coredns_tar_stat.stat.exists
+
+    - name: Set tarball path when downloaded
+      ansible.builtin.set_fact:
+        _coredns_tar_path: "/tmp/{{ coredns_tar }}"
+      when: coredns_tarball_path | length == 0
+
+    - name: Load and push CoreDNS image to registry, then remove tarball
+      ansible.builtin.shell: |
+        set -e
+        tar_path="{{ _coredns_tar_path }}"
+        [ -f "$tar_path" ] || { echo "Tarball not found: $tar_path"; exit 1; }
+        img=$(docker load -i "$tar_path" | awk '/Loaded image:/ {print $3}')
+        name=$(echo "$img" | awk -F/ '{print $NF}')
+        docker tag "$img" {{ registry }}/$name
+        docker push {{ registry }}/$name
+        rm -f "$tar_path"
+      args:
+        executable: /bin/bash
+      register: push_coredns
+
+    - name: Restart CoreDNS pods so they pull the image
+      ansible.builtin.shell: |
+        export KUBECONFIG=/etc/kubernetes/admin.conf
+        kubectl delete pods -n kube-system -l k8s-app=kube-dns --force --grace-period=0
+      when: push_coredns is changed
+      failed_when: false

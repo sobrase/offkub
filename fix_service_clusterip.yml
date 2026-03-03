@@ -1,0 +1,40 @@
+---
+# Fix ClusterIP allocator when Services get no ClusterIP (e.g. after rejoin or missing serviceSubnet).
+# Uses service_network_cidr from group_vars (same as kubeadm serviceSubnet).
+# Run: .venv/bin/ansible-playbook -i inventory fix_service_clusterip.yml
+- hosts: "{{ groups['masters'][0] }}"
+  become: true
+  tasks:
+    - name: Ensure kubeadm-config has serviceSubnet in ClusterConfiguration
+      ansible.builtin.shell: |
+        set -e
+        export KUBECONFIG=/etc/kubernetes/admin.conf
+        raw=$(kubectl get cm kubeadm-config -n kube-system -o jsonpath='{.data.ClusterConfiguration}')
+        if echo "$raw" | grep -q 'serviceSubnet:'; then
+          echo "serviceSubnet already present"
+          exit 0
+        fi
+        updated=$(echo "$raw" | sed '/podSubnet:/a\  serviceSubnet: "{{ service_network_cidr | default("10.96.0.0/12") }}"')
+        echo "$updated" | python3 -c "import json,sys; c=sys.stdin.read(); print(json.dumps({'data':{'ClusterConfiguration':c}}))" > /tmp/cm-patch.json
+        kubectl patch cm kubeadm-config -n kube-system --type=merge -p "$(cat /tmp/cm-patch.json)"
+      args:
+        executable: /bin/bash
+      register: patch_cm
+      changed_when: "'serviceSubnet already present' not in patch_cm.stdout"
+
+- hosts: masters
+  become: true
+  tasks:
+    - name: Ensure kube-apiserver has --service-cluster-ip-range
+      ansible.builtin.lineinfile:
+        path: /etc/kubernetes/manifests/kube-apiserver.yaml
+        line: '    - --service-cluster-ip-range={{ service_network_cidr | default("10.96.0.0/12") }}'
+        insertafter: '    - --advertise-address='
+        state: present
+      register: apiserver_patch
+
+    - name: Restart kubelet so apiserver pod is recreated
+      ansible.builtin.systemd:
+        name: kubelet
+        state: restarted
+      when: apiserver_patch.changed

@@ -25,6 +25,18 @@ Utility scripts for preparing an offline Kubernetes deployment. See [UPGRADE.md]
 
 The deploy script syncs `/opt/offline` to the first master, starts the asset server there, then runs the Ansible playbook. All nodes pull packages and images from that HTTP server.
 
+### Destroy and redeploy
+
+To tear down the cluster and recreate it from scratch (e.g. after a bad state):
+
+```bash
+./scripts/destroy_and_redeploy.sh
+# Or if assets are already on the first master:
+./scripts/destroy_and_redeploy.sh --assets-on-master
+```
+
+This runs `destroy_cluster.yml` (kubeadm reset on all nodes, clean of `/etc/kubernetes`, containerd restart), then `deploy.sh`, then `verify-after-deploy.sh` (nodes, StorageClass, Calico, Traefik, pods). You can also run the steps manually: `ansible-playbook -i inventory destroy_cluster.yml` then `./scripts/deploy.sh`.
+
 ### Inventory (sshm hosts)
 
 The `inventory` file lists your nodes: the first three hosts under `[masters]`
@@ -41,7 +53,7 @@ The playbook deploys a **Docker registry** on the **first master** (role `setup_
 - **Registry**: `registry:2` container on port **5000**; reachable as `registry.local:5000`.
 - **First master**: Docker is installed there; the registry runs as a container; all offline images (Kubernetes, Calico, Traefik, CSI, etc.) are pushed to it.
 - **All nodes**: `prepare_system` adds `registry.local` → first master IP in `/etc/hosts` on every node. **containerd** (role `install_k8s`) is configured with a mirror so `registry.local:5000` is used for image pulls. kubeadm and all workloads pull from this registry.
-- **Registry data** is stored under `registry_data_path` (default `/srv/registry`). A **daily cron job** runs garbage-collection to remove unused blobs and limit disk use. If you later add a separate disk so a full registry cannot fill root, set `registry_data_device` in `group_vars/all.yml` (e.g. `"/dev/sdb1"`), format it, then run with `--tags registry_apply` to have the role mount it at `registry_data_path`.
+- **Registry data** is stored under `registry_data_path` (default `/srv/registry`). A **daily cron job** runs garbage-collection to remove unused blobs and limit disk use. If you later add a separate disk so a full registry cannot fill root, set `registry_data_device` in `group_vars/all.yml` (e.g. `"/dev/sdb1"`), format it, then run with `--tags registry_apply` to have the role mount it at `registry_data_path`. Before downloading and pushing images, the role checks that `registry_data_path` and `/tmp` have at least `registry_min_free_mb` MB free (default 1024) and removes each image tarball from `/tmp` after push to avoid filling the filesystem.
 - **Garbage collection**: a daily cron job (3:00) runs `registry garbage-collect` to remove unused blobs. Ensure the registry config has `storage.delete.enabled: true` (the role deploys this).
 
 No extra step is required: a full deploy (`site.yml` or `./scripts/deploy.sh`) installs the registry on the first master and points all nodes to it.
@@ -76,6 +88,32 @@ If you restored **VPS1** (first master) to a previous snapshot, its etcd data wi
    ```
 
    This copies a working `admin.conf` from the second master to VPS1, runs `kubeadm reset phase remove-etcd-member` on VPS1 (to remove its stale etcd member from the cluster), does a full `kubeadm reset` on VPS1, then generates a new control-plane join command from the second master and runs `kubeadm join --control-plane` on VPS1. After that, all three masters and workers should be Ready.
+
+### Services without ClusterIP
+
+If **Services** (e.g. Postgres) stay with **no ClusterIP** (`kubectl get svc` shows `None` or `<none>` for CLUSTER-IP), the service IP allocator may have no range (e.g. after a rejoin or when `serviceSubnet` was missing from the cluster config). Diagnose from a control-plane node:
+
+```bash
+sudo KUBECONFIG=/etc/kubernetes/admin.conf ./scripts/check_service_clusterip.sh
+```
+
+If the script shows that `serviceSubnet` is missing or kube-apiserver has no `--service-cluster-ip-range`, apply the fix playbook (run from your laptop with access to the cluster):
+
+```bash
+.venv/bin/ansible-playbook -i inventory fix_service_clusterip.yml
+```
+
+This adds `serviceSubnet: 10.96.0.0/12` to the kubeadm ConfigMap and ensures every control-plane kube-apiserver has `--service-cluster-ip-range=10.96.0.0/12`, then restarts kubelet so the API server pods pick up the change. New Services should then receive a ClusterIP.
+
+### CoreDNS in ImagePullBackOff (image not in registry)
+
+If CoreDNS pods fail with **ImagePullBackOff** because `registry.local:5000/coredns:v1.11.3` is not found (e.g. after the registry was recreated and only app images were re-pushed), push the CoreDNS image to the registry:
+
+```bash
+.venv/bin/ansible-playbook -i inventory push_coredns_to_registry.yml
+```
+
+This checks free space (same as `setup_registry`), downloads the tarball from the asset server (or uses an existing path if you set `coredns_tarball_path`), loads and pushes the image, removes the tarball, then restarts the CoreDNS pods. Ensure the asset server is serving the image or copy `coredns_v1.11.3.tar` to the first master and run with `-e coredns_tarball_path=/path/to/coredns_v1.11.3.tar`.
 
 ### Verification at each stage
 

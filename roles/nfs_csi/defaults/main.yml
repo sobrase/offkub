@@ -8,7 +8,7 @@ nfs_storage_class:
   server: ""
   # Export path on the NFS server; must match nfs_server role nfs_export_path (e.g. /srv/nfs/exports)
   share: /srv/nfs/exports
-  is_default: false
+  is_default: true
   reclaim_policy: Delete
   volume_binding_mode: Immediate
   allow_volume_expansion: true

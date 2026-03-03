@@ -10,6 +10,8 @@ registry_data_path: "/srv/registry"
 # When set (e.g. /dev/sdb1), mount this device at registry_data_path so registry uses a separate filesystem.
 registry_data_device: ""
 registry_data_fstype: "ext4"
+# Minimum free space (MB) required on registry_data_path and /tmp before downloading/pushing images. Fail early to avoid filling the disk.
+registry_min_free_mb: 1024
 
 # Registry image version
 registry_version: "2.8.2"

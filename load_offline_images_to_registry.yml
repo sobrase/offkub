@@ -1,0 +1,78 @@
+---
+# Load all image tarballs from /opt/offline/images into the local registry.
+# Does not delete originals. Checks free space before starting and before each image to avoid filling the filesystem.
+# Run: .venv/bin/ansible-playbook -i inventory load_offline_images_to_registry.yml
+- hosts: "{{ groups['masters'][0] }}"
+  become: true
+  vars:
+    offline_images_dir: "/opt/offline/images"
+    min_free_mb: "{{ registry_min_free_mb | default(1024) }}"
+    min_free_before_each_mb: 512  # Re-check before each push; skip with warning if below
+  tasks:
+    - name: List tarballs in offline images directory
+      ansible.builtin.find:
+        paths: "{{ offline_images_dir }}"
+        patterns: "*.tar"
+      register: offline_tarballs
+      changed_when: false
+      failed_when: false
+
+    - name: Fail if no tarballs found
+      ansible.builtin.fail:
+        msg: "No *.tar files in {{ offline_images_dir }}"
+      when: offline_tarballs.matched == 0
+
+    - name: Check free space (registry and offline dir partition) before starting
+      ansible.builtin.shell: |
+        set -e
+        min={{ min_free_mb }}
+        reg_avail=$(df -BM "{{ registry_data_path }}" --output=avail 2>/dev/null | tail -1 | tr -d 'M ' || echo 0)
+        dir_avail=$(df -BM "{{ offline_images_dir }}" --output=avail 2>/dev/null | tail -1 | tr -d 'M ' || echo 0)
+        if [ "$reg_avail" -lt "$min" ]; then echo "FAIL: {{ registry_data_path }} has ${reg_avail}MB free, need ${min}MB"; exit 1; fi
+        if [ "$dir_avail" -lt "$min" ]; then echo "FAIL: {{ offline_images_dir }} partition has ${dir_avail}MB free, need ${min}MB"; exit 1; fi
+        echo "ok"
+      args:
+        executable: /bin/bash
+      register: space_check_start
+      changed_when: false
+
+    - name: Fail if free space too low at start
+      ansible.builtin.fail:
+        msg: "{{ space_check_start.stderr }}"
+      when: space_check_start.rc != 0
+
+    - name: Load and push each tarball to registry (no delete of originals)
+      ansible.builtin.shell: |
+        set -e
+        tar_path="{{ item.path }}"
+        min_each={{ min_free_before_each_mb }}
+        reg_avail=$(df -BM "{{ registry_data_path }}" --output=avail 2>/dev/null | tail -1 | tr -d 'M ' || echo 0)
+        if [ "$reg_avail" -lt "$min_each" ]; then
+          echo "SKIP: {{ registry_data_path }} has only ${reg_avail}MB free (need ${min_each}MB), skipping {{ item.path | basename }}" >&2
+          exit 2
+        fi
+        out=$(docker load -i "$tar_path")
+        echo "$out" | grep -q 'Loaded image:' || { echo "No image loaded from $tar_path"; exit 1; }
+        echo "$out" | grep 'Loaded image:' | sed 's/.*Loaded image: *//' | while read -r img; do
+          [ -z "$img" ] && continue
+          name=$(echo "$img" | awk -F/ '{print $NF}')
+          docker tag "$img" {{ registry }}/$name
+          docker push {{ registry }}/$name
+        done
+      args:
+        executable: /bin/bash
+      loop: "{{ offline_tarballs.files }}"
+      register: load_results
+      failed_when: load_results.rc != 0 and load_results.rc != 2
+      changed_when: load_results.rc == 0
+
+    - name: Show skipped tarballs (low space)
+      ansible.builtin.debug:
+        msg: "Skipped (low space): {{ item.item.path }}"
+      loop: "{{ load_results.results | default([]) }}"
+      when: item.rc is defined and item.rc == 2
+
+    - name: Summary
+      ansible.builtin.debug:
+        msg: "Processed {{ offline_tarballs.matched }} tarball(s) from {{ offline_images_dir }}. Check registry and free space if any were skipped."
+      run_once: true

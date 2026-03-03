@@ -1,0 +1,24 @@
+---
+# Set Calico Felix to append iptables rules instead of inserting at position 1.
+# So restrict_access's pod-to-pod FORWARD rule (inserted at 1) is evaluated before cali-FORWARD and cluster DNS works on all nodes.
+# Run once: .venv/bin/ansible-playbook -i inventory fix_calico_chain_insert_mode.yml
+# Then run restrict_access.yml so the FORWARD insert is applied; DNS should work after Calico reconciles (~1 min).
+- hosts: "{{ groups['masters'][0] }}"
+  become: true
+  tasks:
+    - name: Set kubectl environment
+      ansible.builtin.set_fact:
+        fix_kubectl_env:
+          KUBECONFIG: /etc/kubernetes/admin.conf
+
+    - name: Patch FelixConfiguration to chainInsertMode Append
+      ansible.builtin.shell: |
+        kubectl patch felixconfiguration default --type merge -p '{"spec": {"chainInsertMode": "Append"}}'
+      environment: "{{ fix_kubectl_env }}"
+      register: patch_result
+      failed_when: false
+      changed_when: patch_result.rc == 0
+
+    - name: Show patch result
+      ansible.builtin.debug:
+        msg: "{{ patch_result.stdout if patch_result.rc == 0 else 'Patch failed: ' + patch_result.stderr }}"

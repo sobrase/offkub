@@ -55,14 +55,18 @@ helm_version: "v3.18.4"            # Helm CLI version used when fetching assets
 # Use kube-proxy for Service ClusterIP/NodePort (true). Set false to rely on Calico only.
 use_kube_proxy: true
 
+# Cluster network CIDRs. Must match kubeadm networking and restrict_access (iptables) so pod/service traffic is allowed.
+pod_network_cidr: "10.244.0.0/16"   # podSubnet in kubeadm; restrict_access_pod_network_cidr in firewall
+service_network_cidr: "10.96.0.0/12" # serviceSubnet in kubeadm (ClusterIP range)
+
 # Private registry settings
 registry_host: "registry.local"
 registry_port: 5000
 registry: "{{ registry_host }}:{{ registry_port }}"
 # Host path for registry data. Daily GC limits bloat; optional: set registry_data_device to a block device to use a separate filesystem.
 registry_data_path: "/srv/registry"
-# Optional: block device (e.g. /dev/sdb1) to mount at registry_data_path so registry cannot fill root.
-registry_data_device: ""
+# Optional: block device (e.g. /dev/sdb or /dev/sdb1) to mount at registry_data_path so registry cannot fill root. First master only (50G disk).
+registry_data_device: "/dev/sdb"
 registry_data_fstype: "ext4"
 # etcd image in offline registry (may differ from kubeadm default; set to match fetched image)
 etcd_image_tag: "3.5.16-0"

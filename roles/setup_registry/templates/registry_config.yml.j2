@@ -2,6 +2,9 @@
 # Data is stored in /var/lib/registry (bind-mounted from host {{ registry_data_path }})
 # delete.enabled allows garbage-collect to remove unused blobs
 version: 0.1
+# Force listen on :5000 so host -p 5000:5000 matches (registry may otherwise pick a random port)
+http:
+  addr: :5000
 storage:
   filesystem:
     rootdirectory: /var/lib/registry

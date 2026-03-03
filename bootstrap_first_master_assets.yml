@@ -1,0 +1,105 @@
+---
+# Bootstrap /opt/offline on the first master by running fetch_offline_assets.sh there (requires internet on first master).
+# Run: .venv/bin/ansible-playbook -i inventory bootstrap_first_master_assets.yml
+# Then: ./scripts/deploy.sh --assets-on-master
+
+- hosts: "{{ groups['masters'][0] }}"
+  become: true
+  vars:
+    bootstrap_repo_dir: "/tmp/offkub-bootstrap"
+  tasks:
+    - name: Install rsync and fetch script deps (gpg, curl, docker, python3-yaml, python3-jinja2) on first master
+      ansible.builtin.apt:
+        name:
+          - rsync
+          - gnupg
+          - curl
+          - apt-transport-https
+          - ca-certificates
+          - python3-yaml
+          - python3-jinja2
+        state: present
+        update_cache: true
+
+    - name: Create bootstrap directory on first master
+      ansible.builtin.file:
+        path: "{{ bootstrap_repo_dir }}"
+        state: directory
+        mode: "0755"
+
+    - name: Sync repo to first master (for fetch script and group_vars)
+      ansible.builtin.synchronize:
+        src: "{{ playbook_dir }}/"
+        dest: "{{ bootstrap_repo_dir }}/"
+        delete: false
+        rsync_opts:
+          - "--exclude=.git"
+          - "--exclude=.venv"
+          - "--exclude=*.log"
+          - "--exclude=.ansible"
+
+    - name: Deploy resolved group_vars for fetch script (no Ansible vars in template)
+      ansible.builtin.template:
+        src: "{{ playbook_dir }}/group_vars/all.yml"
+        dest: "{{ bootstrap_repo_dir }}/group_vars/all.yml"
+        mode: "0644"
+
+    - name: Create /opt/offline on first master
+      ansible.builtin.file:
+        path: /opt/offline
+        state: directory
+        mode: "0755"
+
+    - name: Ensure Docker keyring dir and key exist
+      block:
+        - ansible.builtin.file:
+            path: /etc/apt/keyrings
+            state: directory
+            mode: "0755"
+        - ansible.builtin.get_url:
+            url: https://download.docker.com/linux/debian/gpg
+            dest: /etc/apt/keyrings/docker.asc
+            mode: "0644"
+
+    - name: Add Docker apt repository
+      ansible.builtin.apt_repository:
+        repo: "deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian {{ ansible_distribution_release }} stable"
+        filename: docker
+        state: present
+
+    - name: Install Docker on first master (required for fetch script docker pull/save)
+      ansible.builtin.apt:
+        name:
+          - docker-ce
+          - docker-ce-cli
+        state: present
+        update_cache: true
+      environment:
+        DEBIAN_FRONTEND: noninteractive
+
+    - name: Ensure Docker service is started
+      ansible.builtin.systemd:
+        name: docker
+        state: started
+        enabled: true
+
+    - name: Run fetch_offline_assets.sh on first master (populates /opt/offline)
+      ansible.builtin.shell: |
+        cd "{{ bootstrap_repo_dir }}" && sudo ./scripts/fetch_offline_assets.sh
+      args:
+        executable: /bin/bash
+      register: fetch_result
+      changed_when: true
+
+    - name: Ensure pkgs and images exist
+      ansible.builtin.assert:
+        that:
+          - fetch_result.rc == 0
+        fail_msg: "fetch_offline_assets.sh failed. First master needs internet and root. Check logs above."
+    - name: Show asset summary
+      ansible.builtin.shell: "ls /opt/offline/pkgs | wc -l; ls /opt/offline/images | wc -l"
+      register: asset_count
+      changed_when: false
+    - name: Display asset counts
+      ansible.builtin.debug:
+        msg: "pkgs={{ asset_count.stdout_lines[0] }} files, images={{ asset_count.stdout_lines[1] }} files"

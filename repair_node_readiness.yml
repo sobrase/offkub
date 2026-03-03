@@ -1,7 +1,7 @@
 ---
 # One-shot repair for nodes stuck in NotReady.
-# Run: ansible-playbook -i inventory repair_node_readiness.yml
-# Uses first master only; requires SSH and KUBECONFIG on that host.
+# Run after restore_node_services.yml if kubectl from master1 did not work.
+# Run: .venv/bin/ansible-playbook -i inventory repair_node_readiness.yml
 - hosts: masters
   become: true
   run_once: true
@@ -10,6 +10,15 @@
       set_fact:
         repair_kubectl_env:
           KUBECONFIG: /etc/kubernetes/admin.conf
+
+    - name: Wait for API server to be reachable (kubectl works)
+      shell: kubectl get nodes --request-timeout=5 2>/dev/null
+      environment: "{{ repair_kubectl_env }}"
+      register: api_ready
+      retries: 12
+      delay: 5
+      until: api_ready.rc == 0
+      changed_when: false
 
     - name: Set Calico API endpoint to first master IP
       shell: |
@@ -37,7 +46,7 @@
       register: felix_patch
     - name: Retry Felix patch after brief wait (API may be briefly unavailable)
       shell: |
-        sleep 15
+        sleep 5
         kubectl patch felixconfigurations default --type merge -p '{"spec": {"bpfEnabled": false}}'
       environment: "{{ repair_kubectl_env }}"
       when: felix_patch is failed
@@ -51,13 +60,14 @@
     - name: Wait for all nodes to be Ready
       shell: |
         not_ready=$(kubectl get nodes --no-headers 2>/dev/null | grep -v " Ready " | wc -l)
-        [[ "$(echo "$not_ready" | tr -d ' ')" -eq 0 ]]
+        [ "$(echo "$not_ready" | tr -d ' ')" -eq 0 ]
       register: nodes_ready
-      retries: 30
+      retries: 24
       delay: 10
       until: nodes_ready.rc == 0
       environment: "{{ repair_kubectl_env }}"
       changed_when: false
+      ignore_errors: true
 
     - name: Show node status
       shell: kubectl get nodes -o wide

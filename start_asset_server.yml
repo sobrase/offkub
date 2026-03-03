@@ -1,0 +1,27 @@
+---
+# Start the asset server on the first master (for --assets-on-master deploy).
+# Usage: ansible-playbook -i inventory start_asset_server.yml
+
+- hosts: "{{ groups['masters'][0] }}"
+  become: true
+  tasks:
+    - name: Copy serve_assets.py to /opt/offline
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/scripts/serve_assets.py"
+        dest: /opt/offline/serve_assets.py
+        mode: "0755"
+
+    - name: Stop any existing serve_assets process
+      ansible.builtin.shell: pkill -f serve_assets.py || true
+      changed_when: false
+      failed_when: false
+
+    - name: Start asset server in background
+      ansible.builtin.shell: |
+        cd /opt/offline && nohup python3 serve_assets.py -d /opt/offline -p 8081 >>/tmp/serve_assets.log 2>&1 &
+        sleep 3
+        pgrep -f serve_assets && echo "Asset server started" || (echo "Failed to start"; tail -30 /tmp/serve_assets.log; exit 1)
+      args:
+        executable: /bin/bash
+      register: start_result
+      changed_when: true

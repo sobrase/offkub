@@ -13,6 +13,10 @@
   environment: "{{ kubectl_env }}"
   become: true
 
+- name: Brief pause for CSI provisioner to be ready for new StorageClass
+  pause:
+    seconds: 15
+
 - name: Create PVC (use default storage class when nfs_test_use_default_class is true)
   template:
     src: nfs-test-pvc.yaml.j2
@@ -31,7 +35,7 @@
       shell: |
         kubectl get pvc -n nfs-test nfs-test-pvc -o jsonpath='{.status.phase}'
       register: pvc_phase
-      retries: 18
+      retries: 30
       delay: 5
       until: pvc_phase.stdout == 'Bound'
       environment: "{{ kubectl_env }}"

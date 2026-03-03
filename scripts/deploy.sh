@@ -37,8 +37,7 @@ ansible all -i inventory -m ping
 
 if [[ "$ASSETS_ON_MASTER" == "true" ]]; then
   echo "=== Skipping sync (--assets-on-master); ensuring serve_assets.py and asset server on $FIRST_MASTER ==="
-  scp "$ROOT_DIR/scripts/serve_assets.py" "$FIRST_MASTER:/opt/offline/" 2>/dev/null || true
-  ansible "$FIRST_MASTER" -i inventory -m shell -a "pgrep -f 'serve_assets.py' || (nohup python3 /opt/offline/serve_assets.py -d /opt/offline -p 8081 </dev/null >/tmp/serve_assets.log 2>&1 &); sleep 1; pgrep -f serve_assets || true" -b
+  run_ansible start_asset_server.yml
 else
   if [[ ! -d "$OFFLINE_ROOT/pkgs" || ! -d "$OFFLINE_ROOT/images" ]]; then
     echo "Offline assets not found at $OFFLINE_ROOT (need pkgs/ and images/)." >&2
@@ -47,10 +46,8 @@ else
   fi
   echo "=== Syncing $OFFLINE_ROOT to $FIRST_MASTER:/opt/offline ==="
   rsync -avz --delete "$OFFLINE_ROOT/" "$FIRST_MASTER:/opt/offline/" || scp -r "$OFFLINE_ROOT" "$FIRST_MASTER:/opt/offline"
-  echo "=== Copying serve_assets.py to first master ==="
-  scp "$ROOT_DIR/scripts/serve_assets.py" "$FIRST_MASTER:/opt/offline/"
   echo "=== Starting asset server on $FIRST_MASTER ==="
-  ansible "$FIRST_MASTER" -i inventory -m shell -a "pkill -f serve_assets.py || true; sleep 1; nohup python3 /opt/offline/serve_assets.py -d /opt/offline -p 8081 </dev/null >/tmp/serve_assets.log 2>&1 & sleep 2; pgrep -f serve_assets || (cat /tmp/serve_assets.log)" -b
+  run_ansible start_asset_server.yml
 fi
 
 echo "=== Running playbook ==="

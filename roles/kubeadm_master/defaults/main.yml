@@ -1,8 +1,8 @@
 ---
 # Default variables for the kubeadm_master role
 
-# Pod CIDR for cluster networking. Should match your CNI configuration.
-pod_cidr: "10.244.0.0/16"
+# Pod CIDR for cluster networking. Should match restrict_access_pod_network_cidr (iptables). Sourced from group_vars pod_network_cidr.
+pod_cidr: "{{ pod_network_cidr | default('10.244.0.0/16') }}"
 
 # Kubernetes version to use during init. This must match the installed packages.
 # Override in group_vars if a global kube_version is provided.

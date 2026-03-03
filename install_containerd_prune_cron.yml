@@ -1,0 +1,41 @@
+---
+# Install a cron job on all nodes to regularly prune unused containerd
+# images and snapshots, so /var/lib/containerd does not exhaust disk.
+#
+# Run once from repo root:
+#   .venv/bin/ansible-playbook -i inventory install_containerd_prune_cron.yml
+
+- hosts: all
+  become: true
+  tasks:
+    - name: Install containerd prune script
+      ansible.builtin.copy:
+        dest: /usr/local/sbin/containerd-prune.sh
+        mode: "0755"
+        owner: root
+        group: root
+        content: |
+          #!/bin/bash
+          set -euo pipefail
+
+          # Simple GC for containerd on Kubernetes nodes.
+          # Removes unused images and snapshots in the k8s namespace.
+
+          if ! command -v ctr >/dev/null 2>&1; then
+            exit 0
+          fi
+
+          # Prune images not referenced by any container
+          ctr -n k8s.io images prune || true
+
+          # Prune unused snapshots
+          ctr -n k8s.io snapshots prune || true
+
+    - name: Ensure daily containerd prune cron is present
+      ansible.builtin.cron:
+        name: "containerd prune (k8s.io)"
+        user: root
+        minute: "17"
+        hour: "3"
+        job: "/usr/local/sbin/containerd-prune.sh >/var/log/containerd-prune.log 2>&1"
+

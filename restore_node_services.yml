@@ -1,0 +1,34 @@
+---
+# Restore containerd and kubelet on all nodes. No kubectl needed.
+# Run this first when nodes are NotReady or kubectl from master1 fails.
+# Skips unreachable hosts. Then run repair_node_readiness.yml to fix NotReady.
+# Use: .venv/bin/ansible-playbook -i inventory restore_node_services.yml
+- hosts: all
+  become: true
+  ignore_unreachable: true
+  tasks:
+    - name: Ensure containerd is running
+      ansible.builtin.systemd:
+        name: containerd
+        state: started
+        enabled: true
+        daemon_reload: true
+
+    - name: Restart containerd
+      ansible.builtin.systemd:
+        name: containerd
+        state: restarted
+      ignore_errors: true
+
+    - name: Ensure kubelet is running
+      ansible.builtin.systemd:
+        name: kubelet
+        state: started
+        enabled: true
+        daemon_reload: true
+
+    - name: Restart kubelet
+      ansible.builtin.systemd:
+        name: kubelet
+        state: restarted
+      ignore_errors: true

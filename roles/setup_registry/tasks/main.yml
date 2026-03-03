@@ -57,7 +57,7 @@
   become: yes
 
 - name: Load registry image
-  shell: docker load -i /tmp/registry.tar
+  shell: docker load -i /tmp/registry.tar && rm -f /tmp/registry.tar
   become: yes
 
 # Dedicated filesystem for registry data so a full registry does not fill root (SSH stays available)
@@ -67,6 +67,21 @@
     path: "{{ registry_data_path }}"
     state: directory
     mode: '0755'
+  become: yes
+  tags: [registry_apply]
+
+- name: Format registry data device if raw (no filesystem)
+  when: registry_data_device | length > 0
+  block:
+    - name: Check if registry data device has a filesystem
+      command: blkid -o value -s TYPE "{{ registry_data_device }}"
+      register: registry_dev_fstype
+      changed_when: false
+      failed_when: false
+
+    - name: Format registry data device as ext4
+      command: "mkfs -t {{ registry_data_fstype }} -F {{ registry_data_device }}"
+      when: registry_dev_fstype.stdout | length == 0 or registry_dev_fstype.rc != 0
   become: yes
   tags: [registry_apply]
 
@@ -96,6 +111,7 @@
     src: registry_config.yml.j2
     dest: /etc/docker/registry/config.yml
     mode: '0644'
+  notify: Restart registry container
   become: yes
   tags: [registry_apply]
 
@@ -119,11 +135,12 @@
   become: yes
   tags: [registry_apply]
 
+# Bind to 0.0.0.0 so cluster nodes (registry.local → first master IP) can pull images
 - name: Create registry container with dedicated data volume and config
   when: registry_container_state.stdout in ['absent', 'recreate']
   shell: |
     docker run -d \
-      -p {{ registry_port }}:5000 \
+      -p 0.0.0.0:{{ registry_port }}:5000 \
       --restart=always \
       --name registry \
       -v {{ registry_data_path }}:/var/lib/registry \
@@ -190,6 +207,27 @@
     python_image: "python_3.12-alpine.tar"
     whoami_image: "whoami_{{ whoami_version }}.tar"
 
+# Avoid filling the filesystem: check free space before downloading tarballs to /tmp and pushing to registry.
+- name: Check free space before downloading images
+  ansible.builtin.shell: |
+    reg_avail=$(df -BM "{{ registry_data_path }}" --output=avail 2>/dev/null | tail -1 | tr -d 'M ' || echo 0)
+    tmp_avail=$(df -BM /tmp --output=avail 2>/dev/null | tail -1 | tr -d 'M ' || echo 0)
+    min={{ registry_min_free_mb | default(1024) }}
+    if [ "$reg_avail" -lt "$min" ]; then echo "FAIL: {{ registry_data_path }} has ${reg_avail}MB free, need ${min}MB"; exit 1; fi
+    if [ "$tmp_avail" -lt "$min" ]; then echo "FAIL: /tmp has ${tmp_avail}MB free, need ${min}MB"; exit 1; fi
+    echo "ok"
+  args:
+    executable: /bin/bash
+  register: space_check
+  changed_when: false
+  become: yes
+
+- name: Fail if free space too low
+  ansible.builtin.fail:
+    msg: "{{ space_check.stderr }}"
+  when: space_check.rc != 0
+  become: yes
+
 # Download Kubernetes core image tarballs
 - name: Download Kubernetes core images
   get_url:
@@ -200,13 +238,14 @@
   loop: "{{ kube_core_images }}"
   become: yes
 
-# Load Kubernetes core images and push them to the local registry
+# Load Kubernetes core images and push them to the local registry. Remove tarball after each push to avoid filling /tmp.
 - name: Load and push Kubernetes core images
   shell: |
     img=$(docker load -i /tmp/{{ item }} | awk '/Loaded image:/ {print $3}')
     name=$(echo "$img" | awk -F/ '{print $NF}')
     docker tag $img {{ registry }}/$name
     docker push {{ registry }}/$name
+    rm -f /tmp/{{ item }}
   args:
     executable: /bin/bash
   loop: "{{ kube_core_images }}"
@@ -236,6 +275,7 @@
     fi
     docker tag "$img" {{ registry }}/$name
     docker push {{ registry }}/$name
+    rm -f /tmp/{{ item }}
   args:
     executable: /bin/bash
   loop: "{{ calico_images }}"
@@ -259,6 +299,7 @@
     name=$(echo "$img" | cut -d/ -f2-)
     docker tag $img {{ registry }}/$name
     docker push {{ registry }}/$name
+    rm -f /tmp/{{ nvidia_plugin_image }}
   args:
     executable: /bin/bash
   become: yes
@@ -280,6 +321,7 @@
     name=$(echo "$img" | cut -d/ -f2-)
     docker tag $img {{ registry }}/$name
     docker push {{ registry }}/$name
+    rm -f /tmp/{{ item }}
   args:
     executable: /bin/bash
   loop: "{{ storage_images }}"
@@ -300,6 +342,7 @@
     name=$(echo "$img" | awk -F/ '{print $NF}')
     docker tag $img {{ registry }}/$name
     docker push {{ registry }}/$name
+    rm -f /tmp/{{ traefik_image }}
   args:
     executable: /bin/bash
   become: yes
@@ -319,6 +362,7 @@
     name=$(echo "$img" | awk -F/ '{print $NF}')
     docker tag $img {{ registry }}/$name
     docker push {{ registry }}/$name
+    rm -f /tmp/{{ python_image }}
   args:
     executable: /bin/bash
   become: yes
@@ -338,6 +382,7 @@
     name=$(echo "$img" | awk -F/ '{print $NF}')
     docker tag $img {{ registry }}/$name
     docker push {{ registry }}/$name
+    rm -f /tmp/{{ whoami_image }}
   args:
     executable: /bin/bash
   become: yes

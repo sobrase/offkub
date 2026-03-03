@@ -1,0 +1,55 @@
+---
+# Fix registry on first master so it listens on 0.0.0.0:5000 (reachable as registry.local from all nodes).
+# Recreates the container with explicit 0.0.0.0 binding so cluster nodes can pull.
+#
+# Run: .venv/bin/ansible-playbook -i inventory fix_registry_listen.yml
+
+- hosts: "{{ groups['masters'][0] }}"
+  become: true
+  vars:
+    _registry_data_path: "{{ registry_data_path | default('/srv/registry') }}"
+    _registry_port: "{{ registry_port | default(5000) }}"
+  tasks:
+    - name: Get current registry port binding
+      ansible.builtin.shell: docker port registry 5000 2>/dev/null || echo "no-container"
+      register: registry_port_binding
+      changed_when: false
+      failed_when: false
+
+    - name: Check registry data and config exist
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      loop:
+        - "{{ _registry_data_path }}"
+        - /etc/docker/registry/config.yml
+      register: registry_paths
+      changed_when: false
+
+    - name: Recreate registry to listen on 0.0.0.0
+      block:
+        - name: Stop and remove registry container
+          ansible.builtin.shell: docker stop registry 2>/dev/null; docker rm registry 2>/dev/null; true
+          changed_when: true
+
+        - name: Create registry listening on 0.0.0.0
+          ansible.builtin.shell: |
+            docker run -d \
+              -p 0.0.0.0:{{ _registry_port }}:5000 \
+              --restart=always \
+              --name registry \
+              -v {{ _registry_data_path }}:/var/lib/registry \
+              -v /etc/docker/registry/config.yml:/etc/docker/registry/config.yml:ro \
+              registry:2
+          changed_when: true
+      when: >
+        (registry_port_binding.stdout is search('127.0.0.1')) or
+        (registry_port_binding.stdout == 'no-container' and registry_paths.results[0].stat.exists and registry_paths.results[1].stat.exists) or
+        (registry_port_binding.stdout is not search('0.0.0.0'))
+
+    - name: Verify registry responds on HTTP
+      ansible.builtin.uri:
+        url: "http://127.0.0.1:{{ _registry_port }}/v2/_catalog"
+        method: GET
+      register: registry_catalog
+      changed_when: false
+      failed_when: false

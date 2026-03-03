@@ -13,8 +13,14 @@ if [[ -z "$FIRST_MASTER" ]]; then
 fi
 echo "=== After full deploy: nodes ==="
 ansible "$FIRST_MASTER" -i inventory -m shell -a "KUBECONFIG=/etc/kubernetes/admin.conf kubectl get nodes -o wide" -b
-echo "=== After full deploy: pods (all namespaces) ==="
+echo "=== Storage class (default should be nfs-csi) ==="
+ansible "$FIRST_MASTER" -i inventory -m shell -a "KUBECONFIG=/etc/kubernetes/admin.conf kubectl get storageclass -o wide" -b
+echo "=== Calico (calico-system) ==="
+ansible "$FIRST_MASTER" -i inventory -m shell -a "KUBECONFIG=/etc/kubernetes/admin.conf kubectl get pods -n calico-system -o wide" -b
+echo "=== Traefik ==="
+ansible "$FIRST_MASTER" -i inventory -m shell -a "KUBECONFIG=/etc/kubernetes/admin.conf kubectl get pods -n traefik -o wide" -b
+echo "=== Pods (all namespaces) ==="
 ansible "$FIRST_MASTER" -i inventory -m shell -a "KUBECONFIG=/etc/kubernetes/admin.conf kubectl get pods -A" -b
-echo "=== After full deploy: gateway and routes (if Traefik deployed) ==="
+echo "=== Gateways and HTTPRoutes (Traefik) ==="
 ansible "$FIRST_MASTER" -i inventory -m shell -a "KUBECONFIG=/etc/kubernetes/admin.conf kubectl get gateways,httproutes -A 2>/dev/null || true" -b
 echo "verify-after-deploy OK."

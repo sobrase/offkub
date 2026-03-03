@@ -1,0 +1,59 @@
+---
+# Run DNS debug on first master and fetch log to .cursor/debug-351bb9.log
+- hosts: "{{ groups['masters'][0] }}"
+  become: true
+  vars:
+    remote_log: "/tmp/debug-351bb9.log"
+  tasks:
+    - name: Copy debug script to first master
+      ansible.builtin.copy:
+        src: scripts/debug_dns_postgres.sh
+        dest: /tmp/debug_dns_postgres.sh
+        mode: "0755"
+
+    - name: Run debug script on first master
+      ansible.builtin.shell: "KUBECONFIG=/etc/kubernetes/admin.conf /tmp/debug_dns_postgres.sh {{ remote_log }} 351bb9"
+      args:
+        executable: /bin/bash
+      register: run_debug
+      changed_when: false
+      failed_when: false
+
+    - name: Fetch debug log to local .cursor
+      ansible.builtin.fetch:
+        src: "{{ remote_log }}"
+        dest: "{{ playbook_dir }}/.cursor/"
+        flat: true
+      register: fetch_log
+      ignore_errors: true
+
+# Capture FORWARD and cali-FORWARD on every node (see why Calico doesn't accept DNS)
+- hosts: all
+  become: true
+  tasks:
+    - name: Capture FORWARD chain on this node
+      ansible.builtin.shell: "iptables -L FORWARD -n -v --line-numbers 2>/dev/null | head -25"
+      register: forward_out
+      changed_when: false
+
+    - name: Capture cali-FORWARD chain (Calico – should allow pod/DNS by default)
+      ansible.builtin.shell: "iptables -L cali-FORWARD -n -v --line-numbers 2>/dev/null | head -40"
+      register: cali_forward_out
+      changed_when: false
+      failed_when: false
+
+    - name: Write FORWARD + cali-FORWARD snapshot to /tmp for fetch
+      ansible.builtin.copy:
+        content: |
+          === FORWARD ===
+          {{ forward_out.stdout }}
+
+          === cali-FORWARD (Calico) ===
+          {{ cali_forward_out.stdout | default('(chain missing or empty)') }}
+        dest: "/tmp/forward-debug-{{ inventory_hostname }}.log"
+
+    - name: Fetch FORWARD snapshot to .cursor per host
+      ansible.builtin.fetch:
+        src: "/tmp/forward-debug-{{ inventory_hostname }}.log"
+        dest: "{{ playbook_dir }}/.cursor/forward-snapshots/"
+        flat: false

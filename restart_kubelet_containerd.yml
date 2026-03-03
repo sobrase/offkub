@@ -1,9 +1,10 @@
 ---
 # Restart kubelet and containerd on all nodes.
-# Run: ansible-playbook -i inventory restart_kubelet_containerd.yml
-# Or: .venv/bin/ansible-playbook -i inventory restart_kubelet_containerd.yml
+# Skips unreachable hosts so one down node does not fail the run.
+# Run: .venv/bin/ansible-playbook -i inventory restart_kubelet_containerd.yml
 - hosts: all
   become: true
+  ignore_unreachable: true
   tasks:
     - name: Restart containerd
       ansible.builtin.systemd:

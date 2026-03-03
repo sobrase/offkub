@@ -3,3 +3,7 @@
   service:
     name: docker
     state: restarted
+
+- name: Restart registry container
+  shell: docker restart registry
+  become: yes

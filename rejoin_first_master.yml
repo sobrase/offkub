@@ -1,0 +1,185 @@
+---
+# Rejoin the first master (VPS1) after it was restored to an old state and its etcd
+# is out of sync with the other control-plane nodes.
+#
+# Prerequisites: at least one other master (e.g. master2) is healthy and the API
+# is reachable from your Ansible controller and from VPS1.
+#
+# Run: .venv/bin/ansible-playbook -i inventory rejoin_first_master.yml
+#
+# Steps: copy working admin.conf from master2 to VPS1 -> remove VPS1's etcd member
+# from the cluster (from VPS1) -> full reset on VPS1 -> generate join from master2
+# -> join VPS1 as control-plane again.
+
+- name: Get working kubeconfig from another master
+  hosts: "{{ groups['masters'][1] }}"
+  become: true
+  tasks:
+    - name: Read admin.conf from working master
+      ansible.builtin.slurp:
+        src: /etc/kubernetes/admin.conf
+      register: admin_conf_slurp
+
+    - name: Store admin.conf content for VPS1
+      ansible.builtin.set_fact:
+        admin_conf_b64: "{{ admin_conf_slurp.content }}"
+      no_log: true
+
+- name: Deploy kubeconfig to first master and remove its etcd member
+  hosts: "{{ groups['masters'][0] }}"
+  become: true
+  tasks:
+    - name: Ensure /etc/kubernetes exists on first master
+      ansible.builtin.file:
+        path: /etc/kubernetes
+        state: directory
+        mode: "0755"
+
+    - name: Copy working admin.conf to first master
+      ansible.builtin.copy:
+        content: "{{ hostvars[groups['masters'][1]].admin_conf_b64 | b64decode }}"
+        dest: /etc/kubernetes/admin.conf
+        mode: "0600"
+      no_log: true
+
+    - name: Remove first master's etcd member from the cluster
+      ansible.builtin.shell: kubeadm reset phase remove-etcd-member --kubeconfig /etc/kubernetes/admin.conf
+      register: remove_etcd
+      changed_when: remove_etcd.rc == 0
+      failed_when: remove_etcd.rc != 0 and 'no such member' not in (remove_etcd.stderr | default(''))
+
+    - name: Full kubeadm reset on first master
+      ansible.builtin.shell: kubeadm reset -f
+      changed_when: true
+
+    - name: Clean etcd data dir if present
+      ansible.builtin.file:
+        path: /var/lib/etcd
+        state: absent
+      failed_when: false
+
+# Use this master's API (its IP) so token/create work when first master is down; cert is valid for node IPs only.
+# kubeadm reads admin.conf from default path for some steps, so we temporarily point it to this node's API.
+- name: Generate control-plane join command from working master
+  hosts: "{{ groups['masters'][1] }}"
+  become: true
+  tasks:
+    - name: Create kubeconfig pointing to this master API server
+      ansible.builtin.shell: |
+        first_master_ip="{{ hostvars[groups['masters'][0]].ansible_default_ipv4.address }}"
+        my_ip="{{ ansible_default_ipv4.address }}"
+        sed -e "s|https://${first_master_ip}:6443|https://${my_ip}:6443|g" -e "s|https://[^:]*:6443|https://${my_ip}:6443|g" /etc/kubernetes/admin.conf > /tmp/admin-local.conf
+        chmod 600 /tmp/admin-local.conf
+      changed_when: false
+
+    - name: Backup and swap admin.conf to use local API for kubeadm
+      ansible.builtin.shell: |
+        cp -a /etc/kubernetes/admin.conf /etc/kubernetes/admin.conf.bak-rejoin
+        cp -a /tmp/admin-local.conf /etc/kubernetes/admin.conf
+      changed_when: true
+
+    - block:
+        - name: Upload certs and get certificate key
+          ansible.builtin.shell: kubeadm init phase upload-certs --upload-certs
+          register: cert_key_raw
+          changed_when: false
+          failed_when: cert_key_raw.rc != 0
+
+        - name: Set trimmed certificate key (last line of stdout is the key)
+          ansible.builtin.set_fact:
+            cert_key: "{{ (cert_key_raw.stdout_lines | default([]) | last) | trim }}"
+
+        - name: Fail if certificate key is empty
+          ansible.builtin.fail:
+            msg: "upload-certs did not return a certificate key. stdout: {{ cert_key_raw.stdout | default('') }}"
+          when: cert_key | length == 0
+
+        - name: Get base join command
+          ansible.builtin.shell: kubeadm token create --print-join-command
+          register: base_join
+          changed_when: false
+
+        - name: Store full control-plane join command
+          ansible.builtin.set_fact:
+            cp_join_cmd: "{{ base_join.stdout }} --control-plane --certificate-key {{ cert_key }}"
+
+        - name: Patch kubeadm-config and cluster-info so join uses this master API
+          ansible.builtin.shell: |
+            first_ip="{{ hostvars[groups['masters'][0]].ansible_default_ipv4.address }}"
+            my_ip="{{ ansible_default_ipv4.address }}"
+            for ns in kube-system kube-public; do
+              for cm in kubeadm-config cluster-info; do
+                kubectl get cm "$cm" -n "$ns" -o yaml 2>/dev/null | \
+                  sed -e '/^\s*resourceVersion:/d' -e '/^\s*uid:/d' -e '/^\s*creationTimestamp:/d' \
+                  -e "s|${first_ip}|${my_ip}|g" | kubectl apply -f - || true
+              done
+            done
+          changed_when: true
+      always:
+        - name: Restore original admin.conf on working master
+          ansible.builtin.shell: |
+            [ -f /etc/kubernetes/admin.conf.bak-rejoin ] && mv /etc/kubernetes/admin.conf.bak-rejoin /etc/kubernetes/admin.conf
+          changed_when: true
+
+    - name: Ensure working master uses its own API in admin.conf (so kubectl works while VPS1 is down)
+      ansible.builtin.shell: |
+        cp -a /tmp/admin-local.conf /etc/kubernetes/admin.conf
+      changed_when: true
+      when: true
+
+- name: Join first master to control plane
+  hosts: "{{ groups['masters'][0] }}"
+  become: true
+  tasks:
+    - name: "Join as control-plane with local advertise address (skip check-etcd; old VPS1 etcd endpoint still in cluster status)"
+      ansible.builtin.shell: "{{ hostvars[groups['masters'][1]].cp_join_cmd }} --apiserver-advertise-address {{ ansible_default_ipv4.address }} --cri-socket unix://{{ cri_socket }} --skip-phases=check-etcd"
+      register: join_result
+      changed_when: join_result.rc == 0
+
+    - name: Fail if join failed
+      ansible.builtin.fail:
+        msg: "kubeadm join failed: {{ join_result.stderr }}"
+      when: join_result.rc != 0
+
+    - name: Ensure .kube directory exists
+      ansible.builtin.file:
+        path: /root/.kube
+        state: directory
+        mode: "0700"
+      when: join_result.rc == 0
+
+    - name: Copy admin kubeconfig for root
+      ansible.builtin.copy:
+        src: /etc/kubernetes/admin.conf
+        dest: /root/.kube/config
+        remote_src: true
+        mode: "0600"
+      when: join_result.rc == 0
+
+- name: Wait for first master node to be Ready
+  hosts: "{{ groups['masters'][1] }}"
+  become: true
+  run_once: true
+  tasks:
+    - name: Wait for all nodes to be Ready
+      ansible.builtin.shell: |
+        not_ready=$(kubectl --kubeconfig /etc/kubernetes/admin.conf get nodes --no-headers 2>/dev/null | grep -v " Ready " | wc -l)
+        [ "$(echo "$not_ready" | tr -d ' ')" -eq 0 ]
+      register: wait_ready
+      retries: 18
+      delay: 5
+      until: wait_ready.rc == 0
+      changed_when: false
+      environment:
+        KUBECONFIG: /etc/kubernetes/admin.conf
+
+    - name: Show nodes
+      ansible.builtin.shell: kubectl --kubeconfig /etc/kubernetes/admin.conf get nodes -o wide
+      register: nodes_out
+      changed_when: false
+      environment:
+        KUBECONFIG: /etc/kubernetes/admin.conf
+
+    - name: Node status
+      ansible.builtin.debug:
+        msg: "{{ nodes_out.stdout_lines }}"
