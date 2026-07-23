@@ -4,3 +4,6 @@ restrict_access_enabled: false
 restrict_access_ssh_port: 22
 restrict_access_disable_ipv6: true
 allowed_source_ips: []
+# Source IPs (CIDR) allowed to reach the local registry port only (registry_port,
+# group_vars/all.yml). For build hosts outside the cluster that push images.
+registry_allowed_ips: []

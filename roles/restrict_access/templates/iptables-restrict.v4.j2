@@ -19,6 +19,10 @@
 {% for ip in allowed_source_ips %}
 -A INPUT -s {{ ip }} -j ACCEPT
 {% endfor %}
+# Build hosts: allow the registry port only (push/pull images)
+{% for ip in registry_allowed_ips %}
+-A INPUT -s {{ ip }} -p tcp --dport {{ registry_port }} -j ACCEPT
+{% endfor %}
 # Cluster nodes: allow all traffic from other VPS nodes (no port restriction)
 {% for ip in cluster_peer_ips %}
 -A INPUT -s {{ ip }} -j ACCEPT
